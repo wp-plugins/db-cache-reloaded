@@ -3,7 +3,7 @@ Contributors: sirzooro, posterd
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
 Tested up to: 2.8.4
-Stable tag: 1.0
+Stable tag: 1.0.1
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -13,7 +13,7 @@ This plugin caches every database query with given lifetime. It is much faster t
 
 I think you've heard of [WP-Cache](http://wordpress.org/extend/plugins/wp-cache/) or [WP Super Cache](http://wordpress.org/extend/plugins/wp-super-cache/), they are both top plugins for WordPress, which make your site faster and responsive. Forget about them - with DB Cache Reloaded your site will work much faster and will use less disk space for cached files. Your visitors will always get actual information in sidebars and server CPU loads will be as low as possible.
 
-This plugin is a fork of a [DB Cache](http://wordpress.org/extend/plugins/db-cache/) plugin. Because his author did not updated its plugin to WordPress 2.8, I finally took his plugin and updated it so now it works with newest WordPress version. Additionally i fixed few bugs, cleaned up the code and make it more secure.
+This plugin is a fork of a [DB Cache](http://wordpress.org/extend/plugins/db-cache/) plugin. Because his author did not updated its plugin to WordPress 2.8, I finally (after almost three months since release of WP 2.8) took his plugin and updated it so now it works with newest WordPress version. Additionally I fixed few bugs, cleaned up the code and make it more secure.
 
 This plugin was tested with WordPress 2.8. It may work with earlier versions too - I have not tested. If you perform such tests, let me know of the results.
 
@@ -79,6 +79,9 @@ Make sure wp-content is writeable by the web server. If not you'll need to [chmo
 1. Deactivate it at plugins page.
 
 == Changelog ==
+
+= 1.0.1 =
+* Fix: statistics are not working
 
 = 1.0 =
 * Took [DB Cache 0.6](http://wordpress.org/extend/plugins/db-cache/) as a baseline;
