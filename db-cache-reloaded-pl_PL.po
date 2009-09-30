@@ -1,0 +1,129 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Daniel Fruyski
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: DB Cache Reloaded\n"
+"Report-Msgid-Bugs-To: http://wordpress.org/tag/db-cache-reloaded\n"
+"POT-Creation-Date: 2009-09-04 16:48+0000\n"
+"PO-Revision-Date: 2009-09-30 19:32+0100\n"
+"Last-Translator: Daniel Frużyński <daniel [A-T] poradnik-webmastera.com>\n"
+"Language-Team: Daniel Fruzysnki <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: Polish\n"
+"X-Poedit-Country: POLAND\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: db-cache-reloaded.php:109
+msgid "Caching activated."
+msgstr "Cache włączone."
+
+#: db-cache-reloaded.php:114
+msgid "Caching can't be activated. Please <a href=\"http://codex.wordpress.org/Changing_File_Permissions\" target=\"blank\">chmod 755</a> <u>wp-content</u> folder"
+msgstr "Cache nie może być włączone. Proszę ustawić <a href=\"http://codex.wordpress.org/Changing_File_Permissions\" target=\"blank\">chmod 755</a> na katalogu <u>wp-content</u>"
+
+#: db-cache-reloaded.php:124
+msgid "Caching deactivated. Cache files deleted."
+msgstr "Cache wyłączone. Zapisane pliki zostały usunięte."
+
+#: db-cache-reloaded.php:170
+msgid "<!-- Generated in {timer} seconds. Made {queries} queries to database and {cached} cached queries. Memory used - {memory} -->"
+msgstr "<!-- Wygenerowano w {timer} sekund. Wykonano {queries} zapytań do bazy danych i {cached} zapisanych zapytań. Używana pamięć - {memory} -->"
+
+#: db-cache-reloaded.php:189
+msgid "Cache files deleted."
+msgstr "Pliki cache zostały usunięte."
+
+#: db-cache-reloaded.php:197
+msgid "Expired cache files deleted."
+msgstr "Wygasłe pliki cache zostałe usunięte."
+
+#: db-cache-reloaded.php:233
+msgid "Settings saved."
+msgstr "Ustawienia zapisane."
+
+#: db-cache-reloaded.php:237
+msgid "Settings can't be saved. Please <a href=\"http://codex.wordpress.org/Changing_File_Permissions\" target=\"blank\">chmod 755</a> file <u>config.ini</u>"
+msgstr "Ustawienia nie mogą zostać zapisane. Proszę ustawić <a href=\"http://codex.wordpress.org/Changing_File_Permissions\" target=\"blank\">chmod 755</a> dla pliku <u>config.ini</u>"
+
+#: db-cache-reloaded.php:245
+msgid "DB Cache Reloaded - Options"
+msgstr "DB Cache Reloaded - Opcje"
+
+#: db-cache-reloaded.php:247
+msgid "Configuration"
+msgstr "Konfiguracja"
+
+#: db-cache-reloaded.php:250
+msgid "Enable"
+msgstr "Włącz"
+
+#: db-cache-reloaded.php:253
+msgid "Expire a cached query after"
+msgstr "Zapisane zapytania wygasają po"
+
+#: db-cache-reloaded.php:254
+msgid "minutes. <em>(Expired files are deleted automatically)</em>"
+msgstr "minutach. <em>(Wygasłe pliki są usuwane automatycznie)</em>"
+
+#: db-cache-reloaded.php:258
+msgid "Additional options"
+msgstr "Dodatkowe opcje"
+
+#: db-cache-reloaded.php:261
+msgid "Cache filter"
+msgstr "Filtr cache"
+
+#: db-cache-reloaded.php:262
+msgid "Do not cache queries that contains this input contents. Divide different filters with '|' (vertical line, e.g. '_posts|_postmeta')"
+msgstr "Nie zapisuj zapytań które zawierają wpisane frazy. Rozdziel różne filtry za pomocą '|' (pionowa kreska, np. '_posts|_postmeta')"
+
+#: db-cache-reloaded.php:265
+msgid "Load stats template"
+msgstr "Załaduj szablon statystyk"
+
+#: db-cache-reloaded.php:266
+msgid "It shows resources usage statistics in your template footer. To disable view just leave this field empty.<br/>{timer} - generation time, {queries} - count of queries to DB, {cached} - cached queries, {memory} - memory"
+msgstr "Pokazuje statystyki wykorzystania zasobów w stopce strony. Aby to wyłączyć, pozostaw to pole puste.<br/>{timer} - czas generowania strony, {queries} - ilość zapytań do bazy danych, {cached} - ilość zapisanych zapytań, {memory} - pamięć"
+
+#: db-cache-reloaded.php:271
+msgid "Save"
+msgstr "Zapisz"
+
+#: db-cache-reloaded.php:272
+msgid "Clear the cache"
+msgstr "Wyczyść cache"
+
+#: db-cache-reloaded.php:273
+msgid "Clear the expired cache"
+msgstr "Wyczyść wygasłe cache"
+
+#: db-module.php:1197
+#, php-format
+msgid "<strong>ERROR</strong>: WordPress %s requires MySQL 4.0.0 or higher"
+msgstr "<strong>BŁĄD</strong>: WordPress %s wymaga MySQL 4.0.0 lub nowszego"
+
+#. Plugin Name of an extension
+msgid "DB Cache Reloaded"
+msgstr "DB Cache Reloaded"
+
+#. Plugin URI of an extension
+msgid "http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/"
+msgstr "http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/"
+
+#. Description of an extension
+msgid "The fastest cache engine for WordPress, that produces cache of database queries with easy configuration. (Disable and enable caching after update)"
+msgstr "Najszybsze cache dla WordPress, które buforuje zapytania do bazy danych, z prostą konfiguracją. (Wyłącz i włącz cacheowanie po aktualizacji)"
+
+#. Author of an extension
+msgid "Daniel Fruyski"
+msgstr "Daniel Fruyski"
+
+#. Author URI of an extension
+msgid "http://www.poradnik-webmastera.com/"
+msgstr "http://www.poradnik-webmastera.com/"
+

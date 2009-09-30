@@ -1,9 +1,9 @@
 ﻿=== Plugin Name ===
-Contributors: sirzooro, posterd
+Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
 Tested up to: 2.8.4
-Stable tag: 1.0.1
+Stable tag: 1.1
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -16,6 +16,12 @@ I think you've heard of [WP-Cache](http://wordpress.org/extend/plugins/wp-cache/
 This plugin is a fork of a [DB Cache](http://wordpress.org/extend/plugins/db-cache/) plugin. Because his author did not updated its plugin to WordPress 2.8, I finally (after almost three months since release of WP 2.8) took his plugin and updated it so now it works with newest WordPress version. Additionally I fixed few bugs, cleaned up the code and make it more secure.
 
 This plugin was tested with WordPress 2.8. It may work with earlier versions too - I have not tested. If you perform such tests, let me know of the results.
+
+Available translations:
+
+* English
+* Polish (pl_PL) - done by me
+* Italian (it_IT) - thanks [Iacopo](http://www.iacchi.org/)
 
 [Changelog](http://wordpress.org/extend/plugins/db-cache-reloaded/changelog/)
 
@@ -30,7 +36,7 @@ This plugin was tested with WordPress 2.8. It may work with earlier versions too
 = How do I know my blog is being cached? =
 
 Check your cache directory wp-content/tmp/ for cache files. Check the load statistics in footer.
-Also you can set DBC_DEBUG to true in db-cache.php file to display as hidden comments on your html page, what queries were loaded from cache and what from mysql.
+Also you can set DBC_DEBUG to true in db-cache-reloaded.php file to display as hidden comments on your html page, what queries were loaded from cache and what from mysql.
 
 = What does this plugin do? =
 
@@ -75,10 +81,19 @@ Make sure wp-content is writeable by the web server. If not you'll need to [chmo
 
 = How do I uninstall DB Cache Reloaded? =
 
-1. Disable it at Settings->DB Cache Reloaded page. The plugin will automatically delete all cache files. If something went wrong - delete /wp-content/db.php, /wp-content/db-config.php and /wp-content/tmp folder. While db.php file exists WordPress will use our optimized DB class instead of own.
+1. Disable it at Settings->DB Cache Reloaded page. The plugin will automatically delete all cache files. If something went wrong - delete /wp-content/db.php, /wp-content/db-config.ini and /wp-content/tmp folder. While db.php file exists WordPress will use our optimised DB class instead of own.
 1. Deactivate it at plugins page.
 
 == Changelog ==
+
+= 1.1 =
+* Added Polish translation;
+* Added Italian translation (thanks Iacopo);
+* Show error in admin section when wpdb class already exists (this should not happen, but I got few reports about this);
+* Fix: do not cause fatal error when plugin is deleted manually without deactivating it first (in this case wp-content/db.php is left). Instead display error in admin section;
+* Added support for custom plugin directory;
+* Some performance improvements;
+* Show message in admin section when plugin is activated but caching is not enabled
 
 = 1.0.1 =
 * Fix: statistics are not working

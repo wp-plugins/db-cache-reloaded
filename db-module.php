@@ -55,11 +55,15 @@ define('ARRAY_N', 'ARRAY_N', false);
 // --- DB Cache Start ---
 // Support for older versions
 if ( !defined( 'WP_CONTENT_DIR' ) ) {
-	define( 'WP_CONTENT_DIR', ABSPATH . 'wp-content' );
+	define( 'WP_CONTENT_DIR', ABSPATH.'wp-content' );
 }
+if ( !defined( 'WP_PLUGIN_DIR' ) ) {
+	define( 'WP_PLUGIN_DIR', WP_CONTENT_DIR.'/plugins' ); // full path, no trailing slash
+}
+
 // Path to plugin
 if ( !defined( 'DBCR_PATH' ) ) {
-	define( 'DBCR_PATH', WP_CONTENT_DIR.'/plugins/db-cache-reloaded' );
+	define( 'DBCR_PATH', WP_PLUGIN_DIR.'/db-cache-reloaded' );
 }
 // --- DB Cache End ---
 
@@ -80,6 +84,7 @@ if ( !defined( 'DBCR_PATH' ) ) {
  * @since 0.71
  * @final
  */
+if ( !class_exists( 'wpdb' ) ) {
 class wpdb {
 
 	/**
@@ -117,15 +122,6 @@ class wpdb {
 	 */
 	var $num_queries = 0;
 	
-	// --- DB Cache Start ---
-	/**
-	 * Amount of queries cached by DB Cache Reloaded made
-	 *
-	 * @var int
-	 */
-	var $num_cachequeries = 0;
-	// --- DB Cache End ---
-
 	/**
 	 * Saved result of the last query made
 	 *
@@ -333,7 +329,40 @@ class wpdb {
 	 * @var bool
 	 */
 	var $real_escape = false;
-
+	
+	// --- DB Cache Start ---
+	/**
+	 * Amount of queries cached by DB Cache Reloaded made
+	 *
+	 * @var int
+	 */
+	var $num_cachequeries = 0;
+	/**
+	 * True if caching is active, otherwise false
+	 *
+	 * @var bool
+	 */
+	var $dbcr_cacheable = true;
+	/**
+	 * Array with DB Cache Reloaded config
+	 *
+	 * @var array
+	 */
+	var $dbcr_config = null;
+	/**
+	 * DB Cache Reloaded helper
+	 *
+	 * @var object of pcache
+	 */
+	var $dbcr_cache = null;
+	/**
+	 * True if DB Cache Reloaded should show error in admin section
+	 *
+	 * @var bool
+	 */
+	var $dbcr_show_error = false;
+	// --- DB Cache End ---
+	
 	/**
 	 * Connects to the database server and selects a database
 	 *
@@ -409,6 +438,50 @@ class wpdb {
 		}
 
 		$this->select($dbname);
+		
+		// --- DB Cache Start ---
+		// Caching
+		// require_once would be better, but some people deletes plugin without deactivating it first
+		if ( @include_once( DBCR_PATH.'/db-functions.php' ) ) {
+			$this->dbcr_config = unserialize( @file_get_contents( WP_CONTENT_DIR.'/db-config.ini' ) );
+			
+			$this->dbcr_cache = new pcache();
+			$this->dbcr_cache->lifetime = isset( $this->dbcr_config['timeout'] ) ? $this->dbcr_config['timeout'] : 5;
+			$this->dbcr_cache->storage = WP_CONTENT_DIR.'/tmp';
+			
+			//$dbc->config = $this->dbcr_config;
+			
+			// Clean unused
+			$dbcheck = date('G')/4;
+			if ($dbcheck == intval( $dbcheck ) && ( !isset( $this->dbcr_config['lastclean'] ) 
+				|| $this->dbcr_config['lastclean'] < time() - 3600 ) ) {
+				$this->dbcr_cache->clean();
+				$this->dbcr_config['lastclean'] = time();
+				$file = fopen(WP_CONTENT_DIR.'/db-config.ini', 'w+');
+				if ($file) {
+					fwrite($file, serialize($this->dbcr_config));
+					fclose($file);
+				}
+			}
+			
+			// cache only frontside
+			if (
+				( defined( 'WP_ADMIN' ) && WP_ADMIN ) ||
+			 	( defined( 'DOING_CRON' ) && DOING_CRON ) || 
+			 	( defined( 'DOING_AJAX' ) && DOING_AJAX ) || 
+				strpos( $_SERVER['REQUEST_URI'], 'wp-admin' ) || 
+				strpos( $_SERVER['REQUEST_URI'], 'wp-login' ) || 
+				strpos( $_SERVER['REQUEST_URI'], 'wp-register' ) || 
+				strpos( $_SERVER['REQUEST_URI'], 'wp-signup' )
+			) {
+				$this->dbcr_cacheable = false;
+			}
+		} else { // Cannot include db-functions.php
+			$this->dbcr_cacheable = false;
+			$this->dbcr_show_error = true;
+		}
+		// --- DB Cache End ---
+
 	}
 
 	/**
@@ -697,76 +770,49 @@ class wpdb {
 
 		// --- DB Cache Start ---
 		// Caching
-		require_once DBCR_PATH."/db-functions.php";
-		$config = unserialize( @file_get_contents( WP_CONTENT_DIR."/db-config.ini" ) );
-		if ( !isset( $config['fiter'] ) || ( strlen( $config['fiter'] ) < 3) ) {
-			$config['fiter'] = 'insert|delete';
-		}
-		
-		$dbc = new pcache();
-		$dbc->lifetime = isset( $config['timeout'] ) ? $config['timeout'] : 5;
-		$dbc->storage = WP_CONTENT_DIR."/tmp";
-		
-		$dbc->config = $config;
-		
-		// Clean unused
-		$dbcheck = date('G')/4;
-		if ($dbcheck == intval( $dbcheck ) && ( !isset( $config['lastclean'] ) || $config['lastclean'] < time() - 3600 ) ) {
-			$dbc->clean();
-			$config['lastclean'] = time();
-			$file = fopen(WP_CONTENT_DIR."/db-config.ini", 'w+');
-			if ($file) {
-				fwrite($file, serialize($config));
-				fclose($file);
+		// check if pcache object is in place
+		if ( !is_null( $this->dbcr_cache ) ) {
+			$dbcr_queryid = md5($query);
+			
+			// do not cache non-select queries
+			if ( preg_match( "/\\s*(insert|delete|update|replace|alter|SET NAMES|FOUND_ROWS)/si", $query ) ) {
+				$this->dbcr_cacheable = false;
 			}
-		}
-		
-		$dbcr_queryid = md5($query);
-		$dbcr_cachable = true;
-		
-		// cache only frontside
-		if (
-			( defined( 'WP_ADMIN' ) && WP_ADMIN ) ||
-		 	( defined( 'DOING_CRON' ) && DOING_CRON ) || 
-		 	( defined( 'DOING_AJAX' ) && DOING_AJAX ) || 
-			strpos( $_SERVER['REQUEST_URI'], 'wp-admin' ) || 
-			strpos( $_SERVER['REQUEST_URI'], 'wp-login' ) || 
-			strpos( $_SERVER['REQUEST_URI'], 'wp-register' ) || 
-			strpos( $_SERVER['REQUEST_URI'], 'wp-signup' ) || 
-			preg_match( "/\\s*(insert|delete|update|replace|alter|SET NAMES|FOUND_ROWS)/si", $query )
-		) {
-			$dbcr_cachable = false;
-		}
-		
-		// for hard queries
-		if ( preg_match( "/\\s*(JOIN | \* |\*\,)/si", $query ) ) {
-			$dbcr_cachable = true;
-		}
-		
-		// User-defined cache filters
-		if ( isset( $config['filter'] ) && preg_match( "/\\s*(".$config['filter'].")/si", $query ) ) {
-			$dbcr_cachable = false;
-		}
-		
-		if ( strpos( $query, "_options" ) ) {
-			$dbc->storage = WP_CONTENT_DIR."/tmp/options";
-		} elseif ( strpos( $query, "_links" ) ) {
-			$dbc->storage = WP_CONTENT_DIR."/tmp/links";
-		} elseif ( strpos( $query, "_terms" ) ) {
-			$dbc->storage = WP_CONTENT_DIR."/tmp/terms";
-		} elseif ( strpos( $query, "_user" ) ) {
-			$dbc->storage = WP_CONTENT_DIR."/tmp/users";
-		} elseif ( strpos( $query, "_post" ) ) {
-			$dbc->storage = WP_CONTENT_DIR."/tmp/posts";
-		}
-		
-		/* Debug part */
-		if ( isset( $config['debug'] ) && $config['debug'] ) {
-			if ( $dbcr_cachable ) {
-				echo "\n<!-- cache: $query -->\n\n";
-			} else {
-				echo "\n<!-- mysql: $query -->\n\n";
+			
+			// for hard queries
+			if ( preg_match( "/\\s*(JOIN | \* |\*\,)/si", $query ) ) {
+				$this->dbcr_cacheable = true;
 			}
+			
+			// User-defined cache filters
+			if ( isset( $config['filter'] ) && ( $config['filter'] != '' ) &&
+				preg_match( "/\\s*(".$config['filter'].")/si", $query ) ) {
+				$this->dbcr_cacheable = false;
+			}
+			
+			if ( strpos( $query, "_options" ) ) {
+				$dbc->storage = WP_CONTENT_DIR."/tmp/options";
+			} elseif ( strpos( $query, "_links" ) ) {
+				$dbc->storage = WP_CONTENT_DIR."/tmp/links";
+			} elseif ( strpos( $query, "_terms" ) ) {
+				$dbc->storage = WP_CONTENT_DIR."/tmp/terms";
+			} elseif ( strpos( $query, "_user" ) ) {
+				$dbc->storage = WP_CONTENT_DIR."/tmp/users";
+			} elseif ( strpos( $query, "_post" ) ) {
+				$dbc->storage = WP_CONTENT_DIR."/tmp/posts";
+			}
+			
+			/* Debug part */
+			if ( isset( $config['debug'] ) && $config['debug'] ) {
+				if ( $this->dbcr_cacheable ) {
+					echo "\n<!-- cache: $query -->\n\n";
+				} else {
+					echo "\n<!-- mysql: $query -->\n\n";
+				}
+			}
+		} elseif ( $this->dbcr_show_error ) {
+			$this->dbcr_show_error = false;
+			add_action( 'admin_notices', array( &$this, '_dbcr_admin_notice' ) );
 		}
 		// --- DB Cache End ---
 			
@@ -790,7 +836,7 @@ class wpdb {
 			$this->timer_start();
 
 		// --- DB Cache Start ---
-		if ( $dbcr_cachable && !( $dbcr_cached = $dbc->load( $dbcr_queryid ) ) ) {
+		if ( $this->dbcr_cacheable && !( $dbcr_cached = $this->dbcr_cache->load( $dbcr_queryid ) ) ) {
 			// --- DB Cache End ---
 			$this->result = @mysql_query($query, $this->dbh);
 			++$this->num_queries;
@@ -831,8 +877,8 @@ class wpdb {
 			$dbcr_cached['num_rows'] = $this->num_rows;
 			$dbcr_cached = serialize( $dbcr_cached );
 			
-			$dbc->save( $dbcr_cached, $dbcr_queryid);
-		} elseif ( $dbcr_cachable ) {
+			$this->dbcr_cache->save( $dbcr_cached, $dbcr_queryid);
+		} elseif ( $this->dbcr_cacheable ) {
 			++$this->num_cachequeries;
 			
 			$dbcr_cached = unserialize( $dbcr_cached );
@@ -1270,6 +1316,26 @@ class wpdb {
 	 */
 	function db_version() {
 		return preg_replace('/[^0-9.].*/', '', mysql_get_server_info( $this->dbh ));
+	}
+	
+	// Show error message when something is messed with DB Cache Reloaded plugin
+	function _dbcr_admin_notice() {
+		// Display error message
+		echo '<div id="notice" class="error"><p>';
+		printf( __('<b>DB Cache Reloaded Error:</b> cannot include <code>db-functions.php</code> file. Please either reinstall plugin or remove <code>%s</code> file.', 'db-cache-reloaded'), WP_CONTENT_DIR.'/db.php' );
+		echo '</p></div>', "\n";
+	}
+}
+
+} else { // class_exists( 'wpdb' )
+	// This should not happen, but I got few error reports regarding this issue
+	if ( class_exists( 'ReflectionClass' ) ) {
+		// We have Reflection classes - display detailed information
+		$ref_class = new ReflectionClass( 'wpdb' );
+		define( 'DBCR_WPDB_EXISTED', $ref_class->getFileName().':'.$ref_class->getStartLine() );
+	} else {
+		// No Reflection - just display general info
+		define( 'DBCR_WPDB_EXISTED', true );
 	}
 }
 
