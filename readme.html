@@ -2,10 +2,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>	
 <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-<title>DB Cache Reloaded 1.0.1 Readme</title>
+<title>DB Cache Reloaded 1.1 Readme</title>
 </head>
 <body>
-<h1>DB Cache Reloaded 1.0.1 Readme</h1>
+<h1>DB Cache Reloaded 1.1 Readme</h1>
 <p>The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.</p>
 <p><b>Plugin Homepage:</b> <a href="http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/">DB Cache Reloaded</a></p>
 <p><b>Plugin Homepage on WordPress.org:</b> <a href="http://wordpress.org/extend/plugins/db-cache-reloaded/">DB Cache Reloaded</a></p>
@@ -17,6 +17,12 @@
 <p>I think you've heard of WP-Cache or WP Super Cache, they are both top plugins for WordPress, which make your site faster and responsive. Forget about them - with DB Cache Reloaded your site will work much faster and will use less disk space for cached files. Your visitors will always get actual information in sidebars and server CPU loads will be as low as possible.</p>
 <p>This plugin is a fork of a DB Cache plugin. Because his author did not updated its plugin to WordPress 2.8, I finally (after almost three months since release of WP 2.8) took his plugin and updated it so now it works with newest WordPress version. Additionally I fixed few bugs, cleaned up the code and make it more secure.</p>
 <p>This plugin was tested with WordPress 2.8. It may work with earlier versions too - I have not tested. If you perform such tests, let me know of the results.</p>
+<p>Available translations:</p>
+<ul>
+<li>English</li>
+<li>Polish (pl_PL) - done by me</li>
+<li>Italian (it_IT) - thanks Iacopo</li>
+</ul>
 
 <h2>Installation</h2>
 <ol>
@@ -29,7 +35,7 @@
 
 <h3>How do I know my blog is being cached?</h3>
 <p>Check your cache directory wp-content/tmp/ for cache files. Check the load statistics in footer.
-Also you can set DBC_DEBUG to true in db-cache.php file to display as hidden comments on your html page, what queries were loaded from cache and what from mysql.</p>
+Also you can set DBC_DEBUG to true in db-cache-reloaded.php file to display as hidden comments on your html page, what queries were loaded from cache and what from mysql.</p>
 
 <h3>What does this plugin do?</h3>
 <p>This plugin decreases count of queries to DB, which means that CPU load of your web-server decreases and your blog can serve much more visitors in one moment.</p>
@@ -59,11 +65,21 @@ It saves information separately and also caches hidden requests to database.</p>
 
 <h3>How do I uninstall DB Cache Reloaded?</h3>
 <ul>
-<li>Disable it at Settings-&gt;DB Cache Reloaded page. The plugin will automatically delete all cache files. If something went wrong - delete /wp-content/db.php, /wp-content/db-config.php and /wp-content/tmp folder. While db.php file exists WordPress will use our optimized DB class instead of own.</li>
+<li>Disable it at Settings-&gt;DB Cache Reloaded page. The plugin will automatically delete all cache files. If something went wrong - delete /wp-content/db.php, /wp-content/db-config.ini and /wp-content/tmp folder. While db.php file exists WordPress will use our optimised DB class instead of own.</li>
 <li> Deactivate it at plugins page.</li>
 </ul>
 
 <h2>Changelog</h2>
+<p>1.1</p>
+<ul>
+<li>Added Polish translation;</li>
+<li>Added Italian translation (thanks Iacopo);</li>
+<li>Show error in admin section when wpdb class already exists (this should not happen, but I got few reports about this);</li>
+<li>Fix: do not cause fatal error when plugin is deleted manually without deactivating it first (in this case wp-content/db.php is left). Instead display error in admin section;</li>
+<li>Added support for custom plugin directory;</li>
+<li>Some performance improvements;</li>
+<li>Show message in admin section when plugin is activated but caching is not enabled</li>
+</ul>
 <p>1.0.1</p>
 <ul>
 <li>Fix: statistics are not working</li>

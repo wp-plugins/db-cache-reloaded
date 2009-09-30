@@ -4,7 +4,7 @@ Plugin Name: DB Cache Reloaded
 Plugin URI: http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/
 Description: The fastest cache engine for WordPress, that produces cache of database queries with easy configuration. (Disable and enable caching after update)
 Author: Daniel Frużyński
-Version: 1.0.1
+Version: 1.1
 Author URI: http://www.poradnik-webmastera.com/
 Text Domain: db-cache-reloaded
 */
@@ -31,25 +31,35 @@ define( 'DBCR_DEBUG', false );
 
 // Support for older versions
 if ( !defined('WP_CONTENT_DIR') ) {
-	define( 'WP_CONTENT_DIR', ABSPATH . 'wp-content' );
+	define( 'WP_CONTENT_DIR', ABSPATH.'wp-content' );
+}
+if ( !defined( 'WP_PLUGIN_DIR' ) ) {
+	define( 'WP_PLUGIN_DIR', WP_CONTENT_DIR.'/plugins' ); // full path, no trailing slash
 }
 
 // Path to plugin
 if ( !defined( 'DBCR_PATH' ) ) {
-	define( 'DBCR_PATH', WP_CONTENT_DIR.'/plugins/db-cache-reloaded' );
+	define( 'DBCR_PATH', WP_PLUGIN_DIR.'/db-cache-reloaded' );
 }
 
 class DBCacheReloaded {
 	var $config = null;
 	var $folders = null;
+	var $settings_page = false;
 	
 	// Constructor
 	function DBCacheReloaded() {
-		$this->config = unserialize( @file_get_contents( WP_CONTENT_DIR."/db-config.ini" ) );
+		$this->config = unserialize( @file_get_contents( WP_CONTENT_DIR.'/db-config.ini' ) );
 		$this->folders = array( "/tmp", "/tmp/options", "/tmp/links", "/tmp/terms", "/tmp/users", "/tmp/posts" );
 		
 		// Initialise plugin
 		add_action( 'init', array( &$this, 'init' ) );
+		
+		// Show warning message to admin
+		add_action( 'admin_notices', array( &$this, 'admin_notices' ) );
+		
+		// Catch options page
+		add_action( 'load-settings_page_db-cache-reloaded/db-cache-reloaded', array( &$this, 'load_settings_page' ) );
 		
 		// Create options menu
 		add_action( 'admin_menu', array( &$this, 'dbcr_admin_menu' ) );
@@ -80,6 +90,30 @@ class DBCacheReloaded {
 		if ( function_exists( 'load_plugin_textdomain' ) ) {
 			load_plugin_textdomain( 'db-cache-reloaded', PLUGINDIR.'/'.dirname(plugin_basename(__FILE__)) );
 		}
+	}
+	
+	function admin_notices() {
+		if ( defined( 'DBCR_WPDB_EXISTED' ) ) {
+			// Display error message
+			echo '<div id="notice" class="error"><p>';
+			_e('<b>DB Cache Reloaded Error:</b> <code>wpdb</code> class is redefined, plugin cannot work!', 'db-cache-reloaded');
+			if ( DBCR_WPDB_EXISTED !== true ) {
+				echo '<br />';
+				printf( __('Previous definition is at %s.', 'db-cache-reloaded'), DBCR_WPDB_EXISTED );
+			}
+			echo '</p></div>', "\n";
+		}
+		
+		if ( !$this->settings_page && ( !isset( $this->config['enabled'] ) || !$this->config['enabled'] ) ) {
+			// Display info message
+			echo '<div id="notice" class="updated fade"><p>';
+			printf( __('<b>DB Cache Reloaded Info:</b> caching is not enabled. Please go to the <a href="%s">Options Page</a> to enable it.', 'db-cache-reloaded'), admin_url( 'options-general.php?page=db-cache-reloaded/db-cache-reloaded.php' ) );
+			echo '</p></div>', "\n";
+		}
+	}
+	
+	function load_settings_page() {
+		$this->settings_page = true;
 	}
 
 	// Create options menu
@@ -170,7 +204,7 @@ class DBCacheReloaded {
 			$this->config['loadstat'] = __('<!-- Generated in {timer} seconds. Made {queries} queries to database and {cached} cached queries. Memory used - {memory} -->', 'db-cache-reloaded');
 		}
 		if ( !isset( $this->config['filter'] ) ) {
-			$this->config['filter'] = "_posts|_postmeta";
+			$this->config['filter'] = '_posts|_postmeta';
 		}
 		if ( defined( 'DBCR_DEBUG' ) && DBCR_DEBUG ) {
 			$this->config['debug'] = 1;
@@ -212,8 +246,10 @@ class DBCacheReloaded {
 		
 			if ( !isset( $saveconfig['filter'] ) ) {
 				$saveconfig['filter'] = '';
+			} else {
+				$this->config['filter'] = $saveconfig['filter'] = trim( $saveconfig['filter'] );
 			}
-		
+			
 			// Activate/deactivate caching
 			if ( !isset( $this->config['enabled'] ) && $cache_enabled ) {
 				$this->dbcr_disable();
