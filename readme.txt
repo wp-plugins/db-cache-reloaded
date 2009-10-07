@@ -3,7 +3,7 @@ Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
 Tested up to: 2.8.4
-Stable tag: 1.1
+Stable tag: 1.2
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -85,6 +85,12 @@ Make sure wp-content is writeable by the web server. If not you'll need to [chmo
 1. Deactivate it at plugins page.
 
 == Changelog ==
+
+= 1.2 =
+* Fix: queries were not cached starting from first not cached query;
+* Fix: all queries were cached in the same directory instead of dedicated subdirectories;
+* Fix: total row count calculation did not work for complex queries (usually observed as no pagination problem);
+* Added support for DBCR_SAVEQUERIES define to enable extended query logging (as compared to default SAVEQUERIES support)
 
 = 1.1 =
 * Added Polish translation;
