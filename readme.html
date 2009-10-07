@@ -2,10 +2,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>	
 <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-<title>DB Cache Reloaded 1.1 Readme</title>
+<title>DB Cache Reloaded 1.2 Readme</title>
 </head>
 <body>
-<h1>DB Cache Reloaded 1.1 Readme</h1>
+<h1>DB Cache Reloaded 1.2 Readme</h1>
 <p>The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.</p>
 <p><b>Plugin Homepage:</b> <a href="http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/">DB Cache Reloaded</a></p>
 <p><b>Plugin Homepage on WordPress.org:</b> <a href="http://wordpress.org/extend/plugins/db-cache-reloaded/">DB Cache Reloaded</a></p>
@@ -70,6 +70,13 @@ It saves information separately and also caches hidden requests to database.</p>
 </ul>
 
 <h2>Changelog</h2>
+<p>1.2</p>
+<ul>
+<li>Fix: queries were not cached starting from first not cached query;</li>
+<li>Fix: all queries were cached in the same directory instead of dedicated subdirectories;</li>
+<li>Fix: total row count calculation did not work for complex queries (usually observed as no pagination problem);</li>
+<li>Added support for DBCR_SAVEQUERIES define to enable extended query logging (as compared to default SAVEQUERIES support)</li>
+</ul>
 <p>1.1</p>
 <ul>
 <li>Added Polish translation;</li>

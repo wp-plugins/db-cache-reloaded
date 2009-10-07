@@ -445,7 +445,7 @@ class wpdb {
 		if ( @include_once( DBCR_PATH.'/db-functions.php' ) ) {
 			$this->dbcr_config = unserialize( @file_get_contents( WP_CONTENT_DIR.'/db-config.ini' ) );
 			
-			$this->dbcr_cache = new pcache();
+			$this->dbcr_cache =& new pcache();
 			$this->dbcr_cache->lifetime = isset( $this->dbcr_config['timeout'] ) ? $this->dbcr_config['timeout'] : 5;
 			$this->dbcr_cache->storage = WP_CONTENT_DIR.'/tmp';
 			
@@ -481,7 +481,6 @@ class wpdb {
 			$this->dbcr_show_error = true;
 		}
 		// --- DB Cache End ---
-
 	}
 
 	/**
@@ -770,41 +769,42 @@ class wpdb {
 
 		// --- DB Cache Start ---
 		// Caching
+		$dbcr_cacheable = $this->dbcr_cacheable;
 		// check if pcache object is in place
 		if ( !is_null( $this->dbcr_cache ) ) {
-			$dbcr_queryid = md5($query);
-			
-			// do not cache non-select queries
-			if ( preg_match( "/\\s*(insert|delete|update|replace|alter|SET NAMES|FOUND_ROWS)/si", $query ) ) {
-				$this->dbcr_cacheable = false;
+			if ( $dbcr_cacheable ) {
+				// do not cache non-select queries
+				if ( preg_match( "/\\s*(insert|delete|update|replace|alter|SET NAMES|FOUND_ROWS)\\b/si", $query ) ) {
+					$dbcr_cacheable = false;
+				}
+				elseif ( // For hard queries - skip them
+					!preg_match( "/\\s*(JOIN | \* |\*\,)/si", $query ) &&
+					// User-defined cache filters
+					isset( $config['filter'] ) && ( $config['filter'] != '' ) &&
+					preg_match( "/\\s*(".$config['filter'].")/si", $query ) ) {
+					$dbcr_cacheable = false;
+				}
 			}
 			
-			// for hard queries
-			if ( preg_match( "/\\s*(JOIN | \* |\*\,)/si", $query ) ) {
-				$this->dbcr_cacheable = true;
-			}
-			
-			// User-defined cache filters
-			if ( isset( $config['filter'] ) && ( $config['filter'] != '' ) &&
-				preg_match( "/\\s*(".$config['filter'].")/si", $query ) ) {
-				$this->dbcr_cacheable = false;
-			}
-			
-			if ( strpos( $query, "_options" ) ) {
-				$dbc->storage = WP_CONTENT_DIR."/tmp/options";
-			} elseif ( strpos( $query, "_links" ) ) {
-				$dbc->storage = WP_CONTENT_DIR."/tmp/links";
-			} elseif ( strpos( $query, "_terms" ) ) {
-				$dbc->storage = WP_CONTENT_DIR."/tmp/terms";
-			} elseif ( strpos( $query, "_user" ) ) {
-				$dbc->storage = WP_CONTENT_DIR."/tmp/users";
-			} elseif ( strpos( $query, "_post" ) ) {
-				$dbc->storage = WP_CONTENT_DIR."/tmp/posts";
+			if ( $dbcr_cacheable ) {
+				$dbcr_queryid = md5($query);
+				
+				if ( strpos( $query, "_options" ) ) {
+					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/options";
+				} elseif ( strpos( $query, "_links" ) ) {
+					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/links";
+				} elseif ( strpos( $query, "_terms" ) ) {
+					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/terms";
+				} elseif ( strpos( $query, "_user" ) ) {
+					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/users";
+				} elseif ( strpos( $query, "_post" ) ) {
+					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/posts";
+				}
 			}
 			
 			/* Debug part */
 			if ( isset( $config['debug'] ) && $config['debug'] ) {
-				if ( $this->dbcr_cacheable ) {
+				if ( $dbcr_cacheable ) {
 					echo "\n<!-- cache: $query -->\n\n";
 				} else {
 					echo "\n<!-- mysql: $query -->\n\n";
@@ -832,24 +832,26 @@ class wpdb {
 		$this->last_query = $query;
 
 		// Perform the query via std mysql_query function..
-		if ( defined('SAVEQUERIES') && SAVEQUERIES )
+		if ( ( defined('SAVEQUERIES') && SAVEQUERIES ) || ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES ) )
 			$this->timer_start();
 
 		// --- DB Cache Start ---
-		if ( $this->dbcr_cacheable && !( $dbcr_cached = $this->dbcr_cache->load( $dbcr_queryid ) ) ) {
+		if ( $dbcr_cacheable && !( $dbcr_cached = $this->dbcr_cache->load( $dbcr_queryid ) ) ) {
 			// --- DB Cache End ---
 			$this->result = @mysql_query($query, $this->dbh);
 			++$this->num_queries;
-	
-			if ( defined('SAVEQUERIES') && SAVEQUERIES )
+			
+			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES )
+				$this->queries[] = array( $query, $this->timer_stop(), $this->get_caller(), false );
+			elseif ( defined('SAVEQUERIES') && SAVEQUERIES )
 				$this->queries[] = array( $query, $this->timer_stop(), $this->get_caller() );
-	
+			
 			// If there is an error then take note of it..
 			if ( $this->last_error = mysql_error($this->dbh) ) {
 				$this->print_error();
 				return false;
 			}
-	
+			
 			$i = 0;
 			while ($i < @mysql_num_fields($this->result)) {
 				$this->col_info[$i] = @mysql_fetch_field($this->result);
@@ -878,7 +880,7 @@ class wpdb {
 			$dbcr_cached = serialize( $dbcr_cached );
 			
 			$this->dbcr_cache->save( $dbcr_cached, $dbcr_queryid);
-		} elseif ( $this->dbcr_cacheable ) {
+		} elseif ( $dbcr_cacheable ) {
 			++$this->num_cachequeries;
 			
 			$dbcr_cached = unserialize( $dbcr_cached );
@@ -889,11 +891,16 @@ class wpdb {
 			$this->num_rows = $dbcr_cached['num_rows'];
 			
 			$return_val = $this->num_rows;
+			
+			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES )
+				$this->queries[] = array( $query, $this->timer_stop(), $this->get_caller(), true );
 		} else { // if no cached
 			$this->result = @mysql_query($query, $this->dbh);
 			++$this->num_queries;
 			
-			if ( defined('SAVEQUERIES') && SAVEQUERIES )
+			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES )
+				$this->queries[] = array( $query, $this->timer_stop(), $this->get_caller(), false );
+			elseif ( defined('SAVEQUERIES') && SAVEQUERIES )
 				$this->queries[] = array( $query, $this->timer_stop(), $this->get_caller() );
 			
 			// If there is an error then take note of it..
