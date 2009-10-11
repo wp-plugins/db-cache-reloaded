@@ -3,7 +3,7 @@ Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
 Tested up to: 2.8.4
-Stable tag: 1.2
+Stable tag: 1.3
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -85,6 +85,11 @@ Make sure wp-content is writeable by the web server. If not you'll need to [chmo
 1. Deactivate it at plugins page.
 
 == Changelog ==
+
+= 1.3 =
+* Further performance improvement;
+* Fix: changes done in admin section were not visible in frontend;
+* Added icon to use by Ozh' Admin Drop Down Menu plugin
 
 = 1.2 =
 * Fix: queries were not cached starting from first not cached query;
