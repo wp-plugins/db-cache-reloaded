@@ -4,7 +4,7 @@ Plugin Name: DB Cache Reloaded
 Plugin URI: http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/
 Description: The fastest cache engine for WordPress, that produces cache of database queries with easy configuration. (Disable and enable caching after update)
 Author: Daniel Frużyński
-Version: 1.2
+Version: 1.3
 Author URI: http://www.poradnik-webmastera.com/
 Text Domain: db-cache-reloaded
 */
@@ -55,14 +55,6 @@ class DBCacheReloaded {
 		// Initialise plugin
 		add_action( 'init', array( &$this, 'init' ) );
 		
-		// Show warning message to admin
-		add_action( 'admin_notices', array( &$this, 'admin_notices' ) );
-		
-		// Catch options page
-		add_action( 'load-settings_page_db-cache-reloaded/db-cache-reloaded', array( &$this, 'load_settings_page' ) );
-		
-		// Create options menu
-		add_action( 'admin_menu', array( &$this, 'dbcr_admin_menu' ) );
 		// Uninstall
 		add_action( 'deactivate_db-cache-reloaded/db-cache.php', array( &$this, 'dbcr_uninstall' ) );
 		
@@ -83,6 +75,24 @@ class DBCacheReloaded {
 		
 		// Display stats in footer
 		add_action( 'wp_footer', 'loadstats', 999999 );
+		
+		if ( is_admin() ) {
+			// Show warning message to admin
+			add_action( 'admin_notices', array( &$this, 'admin_notices' ) );
+			
+			// Catch options page
+			add_action( 'load-settings_page_db-cache-reloaded/db-cache-reloaded', array( &$this, 'load_settings_page' ) );
+			
+			// Create options menu
+			add_action( 'admin_menu', array( &$this, 'dbcr_admin_menu' ) );
+			
+			// Hook for all actions
+			add_action( 'all', array( &$this, 'all_actions' ) );
+			
+			// Provide icon for Ozh' Admin Drop Down Menu plugin
+			add_action( 'ozh_adminmenu_icon_db-cache-reloaded/db-cache-reloaded.php', 
+				array( &$this, 'ozh_adminmenu_icon' ) );
+		}
 	}
 	
 	// Initialise plugin
@@ -110,6 +120,20 @@ class DBCacheReloaded {
 			printf( __('<b>DB Cache Reloaded Info:</b> caching is not enabled. Please go to the <a href="%s">Options Page</a> to enable it.', 'db-cache-reloaded'), admin_url( 'options-general.php?page=db-cache-reloaded/db-cache-reloaded.php' ) );
 			echo '</p></div>', "\n";
 		}
+	}
+	
+	// Hook for all actions
+	// Note: Called in Admin section only
+	function all_actions( $hook ) {
+		// Clear cache when option is updated or added
+		if ( preg_match( '/^(update_option_|add_option_)/', $hook ) ) {
+			$this->dbcr_clear();
+		}
+	}
+	
+	// Provide icon for Ozh' Admin Drop Down Menu plugin
+	function ozh_adminmenu_icon() {
+		return plugins_url( 'icon.png', __FILE__ );
 	}
 	
 	function load_settings_page() {

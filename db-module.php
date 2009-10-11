@@ -432,7 +432,7 @@ class wpdb {
 					$collation_query = "SET NAMES '{$this->charset}'";
 					if ( !empty($this->collate) )
 						$collation_query .= " COLLATE '{$this->collate}'";
-					$this->query($collation_query);
+					$this->dbcr_query($collation_query, false);
 				}
 			}
 		}
@@ -764,12 +764,16 @@ class wpdb {
 	 * @return int|false Number of rows affected/selected or false on error
 	 */
 	function query($query) {
+		return $this->dbcr_query( $query, true );
+	}
+	
+	function dbcr_query( $query, $maybe_cache = true ) {
 		if ( ! $this->ready )
 			return false;
 
 		// --- DB Cache Start ---
 		// Caching
-		$dbcr_cacheable = $this->dbcr_cacheable;
+		$dbcr_cacheable = $this->dbcr_cacheable && $maybe_cache;
 		// check if pcache object is in place
 		if ( !is_null( $this->dbcr_cache ) ) {
 			if ( $dbcr_cacheable ) {
@@ -972,7 +976,7 @@ class wpdb {
 			$formatted_fields[] = $form;
 		}
 		$sql = "INSERT INTO `$table` (`" . implode( '`,`', $fields ) . "`) VALUES ('" . implode( "','", $formatted_fields ) . "')";
-		return $this->query( $this->prepare( $sql, $data) );
+		return $this->dbcr_query( $this->prepare( $sql, $data ), false );
 	}
 
 
@@ -1021,7 +1025,7 @@ class wpdb {
 		}
 
 		$sql = "UPDATE `$table` SET " . implode( ', ', $bits ) . ' WHERE ' . implode( ' AND ', $wheres );
-		return $this->query( $this->prepare( $sql, array_merge(array_values($data), array_values($where))) );
+		return $this->dbcr_query( $this->prepare( $sql, array_merge(array_values($data), array_values($where))), false );
 	}
 
 	/**
@@ -1041,7 +1045,7 @@ class wpdb {
 	function get_var($query=null, $x = 0, $y = 0) {
 		$this->func_call = "\$db->get_var(\"$query\",$x,$y)";
 		if ( $query )
-			$this->query($query);
+			$this->dbcr_query($query);
 
 		// Extract var out of cached results based x,y vals
 		if ( !empty( $this->last_result[$y] ) ) {
@@ -1067,7 +1071,7 @@ class wpdb {
 	function get_row($query = null, $output = OBJECT, $y = 0) {
 		$this->func_call = "\$db->get_row(\"$query\",$output,$y)";
 		if ( $query )
-			$this->query($query);
+			$this->dbcr_query($query);
 		else
 			return null;
 
@@ -1100,7 +1104,7 @@ class wpdb {
 	 */
 	function get_col($query = null , $x = 0) {
 		if ( $query )
-			$this->query($query);
+			$this->dbcr_query($query);
 
 		$new_array = array();
 		// Extract the column values
@@ -1125,7 +1129,7 @@ class wpdb {
 		$this->func_call = "\$db->get_results(\"$query\", $output)";
 
 		if ( $query )
-			$this->query($query);
+			$this->dbcr_query($query);
 		else
 			return null;
 
