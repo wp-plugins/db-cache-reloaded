@@ -23,6 +23,13 @@
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+// Cache directory
+// Need this here, because some people may upgrade manually by overwriting files 
+// without deactivating cache
+if ( !defined( 'DBCR_CACHE_DIR' ) ) {
+	define( 'DBCR_CACHE_DIR', WP_CONTENT_DIR.'/tmp' );
+}
+
 class pcache {
 	var $lifetime = 1800;
 	var $storage = WP_CONTENT_DIR;
@@ -32,7 +39,7 @@ class pcache {
 			return false;
 		}
 
-		$file = $this->storage."/".$tag;
+		$file = $this->storage.'/'.$tag;
 		$result = false;
 		
 		// If file exists
@@ -93,7 +100,7 @@ class pcache {
 			$dir = $this->storage;
 		}
 		
-		$file = $dir."/".$tag;
+		$file = $dir.'/'.$tag;
 
 		if ( is_file( $file ) && @unlink( $file ) ) {
 			return true;
@@ -103,17 +110,19 @@ class pcache {
 	}
 	
 	function clean( $old = true ) {
-		$folders = array( "/tmp" , "/tmp/options" , "/tmp/links" , "/tmp/terms" , "/tmp/users" , "/tmp/posts" );
+		$folders = array( DBCR_CACHE_DIR , DBCR_CACHE_DIR.'/options' , 
+			DBCR_CACHE_DIR.'/links' , DBCR_CACHE_DIR.'/terms' , 
+			DBCR_CACHE_DIR.'/users' , DBCR_CACHE_DIR.'/posts' );
 		foreach( $folders as $folder ) {
-			if ( $dir = @opendir( WP_CONTENT_DIR.$folder ) ) {
+			if ( $dir = @opendir( $folder ) ) {
 				while ( $tag = readdir( $dir ) ) {
 					if ( $tag != '.' && $tag != '..' && $tag != '.htaccess' ) {
 						// Clean all
 						if (!$old) {
-							$this->remove( $tag, WP_CONTENT_DIR.$folder );
-						} elseif ( ( @filemtime( $file ) + $this->lifetime - time() ) < 0) {
+							$this->remove( $tag, $folder );
+						} elseif ( ( @filemtime( $file ) + $this->lifetime - time() ) < 0 ) {
 							// Clean only old
-						 	$this->remove($tag);
+						 	$this->remove( $tag );
 						}
 					}
 				}

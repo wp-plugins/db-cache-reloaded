@@ -2,10 +2,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>	
 <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-<title>DB Cache Reloaded 1.3 Readme</title>
+<title>DB Cache Reloaded 1.4 Readme</title>
 </head>
 <body>
-<h1>DB Cache Reloaded 1.3 Readme</h1>
+<h1>DB Cache Reloaded 1.4 Readme</h1>
 <p>The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.</p>
 <p><b>Plugin Homepage:</b> <a href="http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/">DB Cache Reloaded</a></p>
 <p><b>Plugin Homepage on WordPress.org:</b> <a href="http://wordpress.org/extend/plugins/db-cache-reloaded/">DB Cache Reloaded</a></p>
@@ -69,7 +69,26 @@ It saves information separately and also caches hidden requests to database.</p>
 <li> Deactivate it at plugins page.</li>
 </ul>
 
+<h3>Why plugin shows -1 as number of cached queries?</h3>
+<p>By default DB Cache Reloaded shows number of cached queries in hidden HTML comment in page footer. When you see -1 as a cached queries count, this means that caching is not active. Please make sure that you have enabled caching on settings page (DB Cache Reloaded also shows message in admin backend when caching is not enabled). If caching is enabled and you still see -1, this is a result of conflict with other plugin, which wants to replace default <code>wpdb</code> class with its own too. You have to disable plugins one by one until you find one which causes this conflict. If you have added custom code to your wp-config.php (or other file) in order to install plugin, please remove (or comment out) it too. When you find conflicting plugin, please notify its author about this problem.</p>
+
+<h3>I am a plugin developer. How can I make my plugin compatible with DB Cache Reloaded?</h3>
+<p>DB Cache Reloaded uses default WordPress mechanism to load custom version of <code>wpdb</code> class - it creates custom wp-content/db.php file. WordPress checks if this file exists, and loads it instead of wp-includes/wp-db.php.</p>
+<p>When your plugin includes this class using custom code added to wp-config.php (or any other file), please use <code>require_wp_db()</code> to do this, or use similar code to this function body.</p>
+<p>When you need to modify <code>wpdb</code> class (e.g. by adding or replacing methods), consider deriving your class from the default one (using the <code>extends</code> keyword). Another option is to use aggregation - save value of <code>$wpdb</code> variable, create object of your class and assign to <code>$wpdb</code>. Your class should call methods and access member variables of this saved object, in order to keeps its functionality. Your class should also implement magic methods <code>__get</code>, <code>__set</code>, <code>__isset</code>, <code>__unset</code> and <code>__call</code> in order to forward calls for non-standard methods and properties to the aggregated class.</p>
+<p>Note: when you use derivation, make sure you create object of your class very early, before queries are done. Otherwise number of queries shown in stats will be incorrect.</p>
+
+<h3>How to move default cache directory elsewhere?</h3>
+<p>By default DB Cache Reloaded saves cached queries in <code>wp-content/tmp</code> dir (or another, if you changed value of <code>WP_CONTENT_DIR</code> constant). If you want to change this location, please define <code>DBCR_CACHE_DIR</code> constant in your <code>wp-config.php</code> file - it should point to existing directory. DB Cache Reloaded will use it instead of default location.</p>
+
 <h2>Changelog</h2>
+<p>1.4</p>
+<ul>
+<li>Show -1 as cached queries count when plugin's DB Module is not in use (e.g. because of conflict with other plugin);</li>
+<li>Added check if DB Module version is in sync with plugin version (may not be if someone will upgrade plugin manually without deactivating it or disabling cache);</li>
+<li>Allow to use DBCR_CACHE_DIR define to change default cache directory;</li>
+<li>Fix: uninstall function was not executed</li>
+</ul>
 <p>1.3</p>
 <ul>
 <li>Further performance improvement;</li>
