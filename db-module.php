@@ -65,6 +65,16 @@ if ( !defined( 'WP_PLUGIN_DIR' ) ) {
 if ( !defined( 'DBCR_PATH' ) ) {
 	define( 'DBCR_PATH', WP_PLUGIN_DIR.'/db-cache-reloaded' );
 }
+// Cache directory
+if ( !defined( 'DBCR_CACHE_DIR' ) ) {
+	define( 'DBCR_CACHE_DIR', WP_CONTENT_DIR.'/tmp' );
+}
+
+// DB Module version (two digits for major, minor and revision numbers)
+if ( !defined( 'DBCR_DB_MODULE_VER' ) ) {
+	define( 'DBCR_DB_MODULE_VER', 10400 );
+}
+
 // --- DB Cache End ---
 
 
@@ -361,6 +371,12 @@ class wpdb {
 	 * @var bool
 	 */
 	var $dbcr_show_error = false;
+	/**
+	 * DB Cache Reloaded DB module version
+	 *
+	 * @var int
+	 */
+	var $dbcr_version = DBCR_DB_MODULE_VER;
 	// --- DB Cache End ---
 	
 	/**
@@ -447,7 +463,7 @@ class wpdb {
 			
 			$this->dbcr_cache =& new pcache();
 			$this->dbcr_cache->lifetime = isset( $this->dbcr_config['timeout'] ) ? $this->dbcr_config['timeout'] : 5;
-			$this->dbcr_cache->storage = WP_CONTENT_DIR.'/tmp';
+			$this->dbcr_cache->storage = DBCR_CACHE_DIR;
 			
 			//$dbc->config = $this->dbcr_config;
 			
@@ -791,18 +807,20 @@ class wpdb {
 			}
 			
 			if ( $dbcr_cacheable ) {
-				$dbcr_queryid = md5($query);
+				$dbcr_queryid = md5( $query );
 				
-				if ( strpos( $query, "_options" ) ) {
-					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/options";
-				} elseif ( strpos( $query, "_links" ) ) {
-					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/links";
-				} elseif ( strpos( $query, "_terms" ) ) {
-					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/terms";
-				} elseif ( strpos( $query, "_user" ) ) {
-					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/users";
-				} elseif ( strpos( $query, "_post" ) ) {
-					$this->dbcr_cache->storage = WP_CONTENT_DIR."/tmp/posts";
+				if ( strpos( $query, '_options' ) ) {
+					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/options';
+				} elseif ( strpos( $query, '_links' ) ) {
+					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/links';
+				} elseif ( strpos( $query, '_terms' ) ) {
+					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/terms';
+				} elseif ( strpos( $query, '_user' ) ) {
+					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/users';
+				} elseif ( strpos( $query, '_post' ) ) {
+					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/posts';
+				} else {
+					$this->dbcr_cache->storage = DBCR_CACHE_DIR;
 				}
 			}
 			

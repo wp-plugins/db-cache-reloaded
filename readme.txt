@@ -3,7 +3,7 @@ Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
 Tested up to: 2.8.4
-Stable tag: 1.3
+Stable tag: 1.4
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -81,10 +81,34 @@ Make sure wp-content is writeable by the web server. If not you'll need to [chmo
 
 = How do I uninstall DB Cache Reloaded? =
 
-1. Disable it at Settings->DB Cache Reloaded page. The plugin will automatically delete all cache files. If something went wrong - delete /wp-content/db.php, /wp-content/db-config.ini and /wp-content/tmp folder. While db.php file exists WordPress will use our optimised DB class instead of own.
+1. Disable it at Settings->DB Cache Reloaded page. The plugin will automatically delete all cache files. If something went wrong - delete /wp-content/db.php, /wp-content/db-config.ini and /wp-content/tmp folder manually. When wp-content/db.php file exists, WordPress will use our optimised DB class instead of its own.
 1. Deactivate it at plugins page.
 
+= Why plugin shows -1 as number of cached queries? =
+
+By default DB Cache Reloaded shows number of cached queries in hidden HTML comment in page footer. When you see -1 as a cached queries count, this means that caching is not active. Please make sure that you have enabled caching on settings page (DB Cache Reloaded also shows message in admin backend when caching is not enabled). If caching is enabled and you still see -1, this is a result of conflict with other plugin, which wants to replace default `wpdb` class with its own too. You have to disable plugins one by one until you find one which causes this conflict. If you have added custom code to your wp-config.php (or other file) in order to install plugin, please remove (or comment out) it too. When you find conflicting plugin, please notify its author about this problem.
+
+= I am a plugin developer. How can I make my plugin compatible with DB Cache Reloaded? =
+
+DB Cache Reloaded uses default WordPress mechanism to load custom version of `wpdb` class - it creates custom wp-content/db.php file. WordPress checks if this file exists, and loads it instead of wp-includes/wp-db.php.
+
+When your plugin includes this class using custom code added to wp-config.php (or any other file), please use `require_wp_db()` to do this, or use similar code to this function body.
+
+When you need to modify `wpdb` class (e.g. by adding or replacing methods), consider deriving your class from the default one (using the `extends` keyword). Another option is to use aggregation - save value of `$wpdb` variable, create object of your class and assign to `$wpdb`. Your class should call methods and access member variables of this saved object, in order to keeps its functionality. Your class should also implement magic methods `__get`, `__set`, `__isset`, `__unset` and `__call`.
+
+Note: when you use derivation, make sure you create object of your class very early, before queries are done. Otherwise number of queries shown in stats will be incorrect.
+
+= How to move default cache directory elsewhere? =
+
+By default DB Cache Reloaded saves cached queries in `wp-content/tmp dir` (or another, if you changed value of `WP_CONTENT_DIR` constant). If you want to change this location, please define `DBCR_CACHE_DIR` constant in your `wp-config.php` file - it should point to existing directory. DB Cache Reloaded will use it instead of default location.
+
 == Changelog ==
+
+= 1.4 =
+* Show -1 as cached queries count when plugin's DB Module is not in use (e.g. because of conflict with other plugin);
+* Added check if DB Module version is in sync with plugin version (may not be if someone will upgrade plugin manually without deactivating it or disabling cache);
+* Allow to use DBCR_CACHE_DIR define to change default cache directory;
+* Fix: uninstall function was not executed
 
 = 1.3 =
 * Further performance improvement;
