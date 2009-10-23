@@ -3,7 +3,7 @@ Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
 Tested up to: 2.8.4
-Stable tag: 1.4
+Stable tag: 1.4.1
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -22,6 +22,7 @@ Available translations:
 * English
 * Polish (pl_PL) - done by me
 * Italian (it_IT) - thanks [Iacopo](http://www.iacchi.org/)
+* Portuguese Brazilian (pt_BR) - thanks [Calebe Aires](http://gattune.blog.br/)
 
 [Changelog](http://wordpress.org/extend/plugins/db-cache-reloaded/changelog/)
 
@@ -104,10 +105,13 @@ By default DB Cache Reloaded saves cached queries in `wp-content/tmp dir` (or an
 
 == Changelog ==
 
+= 1.4.1 =
+* Added Portuguese Brazilian translation (thanks Calebe Aires)
+
 = 1.4 =
 * Show -1 as cached queries count when plugin's DB Module is not in use (e.g. because of conflict with other plugin);
 * Added check if DB Module version is in sync with plugin version (may not be if someone will upgrade plugin manually without deactivating it or disabling cache);
-* Allow to use DBCR_CACHE_DIR define to change default cache directory;
+* Allow to use `DBCR_CACHE_DIR` define to change default cache directory;
 * Fix: uninstall function was not executed
 
 = 1.3 =
@@ -119,7 +123,7 @@ By default DB Cache Reloaded saves cached queries in `wp-content/tmp dir` (or an
 * Fix: queries were not cached starting from first not cached query;
 * Fix: all queries were cached in the same directory instead of dedicated subdirectories;
 * Fix: total row count calculation did not work for complex queries (usually observed as no pagination problem);
-* Added support for DBCR_SAVEQUERIES define to enable extended query logging (as compared to default SAVEQUERIES support)
+* Added support for `DBCR_SAVEQUERIES` define to enable extended query logging (as compared to default `SAVEQUERIES` support)
 
 = 1.1 =
 * Added Polish translation;
