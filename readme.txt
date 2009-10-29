@@ -2,8 +2,8 @@
 Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
-Tested up to: 2.8.4
-Stable tag: 1.4.1
+Tested up to: 2.8.5
+Stable tag: 1.4.2
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -104,6 +104,9 @@ Note: when you use derivation, make sure you create object of your class very ea
 By default DB Cache Reloaded saves cached queries in `wp-content/tmp dir` (or another, if you changed value of `WP_CONTENT_DIR` constant). If you want to change this location, please define `DBCR_CACHE_DIR` constant in your `wp-config.php` file - it should point to existing directory. DB Cache Reloaded will use it instead of default location.
 
 == Changelog ==
+
+= 1.4.2 =
+* Marked as compatible with WP 2.8.5
 
 = 1.4.1 =
 * Added Portuguese Brazilian translation (thanks Calebe Aires)
