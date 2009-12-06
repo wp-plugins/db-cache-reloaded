@@ -70,9 +70,9 @@ if ( !defined( 'DBCR_CACHE_DIR' ) ) {
 	define( 'DBCR_CACHE_DIR', WP_CONTENT_DIR.'/tmp' );
 }
 
-// DB Module version (two digits for major, minor and revision numbers)
+// DB Module version (one or more digits for major, two digits for minor and revision numbers)
 if ( !defined( 'DBCR_DB_MODULE_VER' ) ) {
-	define( 'DBCR_DB_MODULE_VER', 10400 );
+	define( 'DBCR_DB_MODULE_VER', 10500 );
 }
 
 // --- DB Cache End ---
@@ -254,6 +254,15 @@ class wpdb {
 	var $postmeta;
 
 	/**
+	 * WordPress Comment Metadata table
+	 *
+	 * @since 2.9
+	 * @access public
+	 * @var string
+	 */
+	var $commentmeta;
+
+	/**
 	 * WordPress User Metadata table
 	 *
 	 * @since 2.3.0
@@ -297,7 +306,16 @@ class wpdb {
 	 * @var array
 	 */
 	var $tables = array('users', 'usermeta', 'posts', 'categories', 'post2cat', 'comments', 'links', 'link2cat', 'options',
-			'postmeta', 'terms', 'term_taxonomy', 'term_relationships');
+			'postmeta', 'terms', 'term_taxonomy', 'term_relationships', 'commentmeta');
+
+	/**
+	 * List of deprecated WordPress tables
+	 *
+	 * @since 2.9.0
+	 * @access private
+	 * @var array
+	 */
+	var $old_tables = array('categories', 'post2cat', 'link2cat');
 
 	/**
 	 * Format specifiers for DB columns. Columns not listed here default to %s.  Initialized in wp-settings.php.
@@ -340,6 +358,15 @@ class wpdb {
 	 */
 	var $real_escape = false;
 	
+	/**
+	 * Database Username
+	 *
+	 * @since 2.9.0
+	 * @access private
+	 * @var string
+	 */
+	var $dbuser;
+
 	// --- DB Cache Start ---
 	/**
 	 * Amount of queries cached by DB Cache Reloaded made
@@ -422,6 +449,8 @@ class wpdb {
 		if ( defined('DB_COLLATE') )
 			$this->collate = DB_COLLATE;
 
+		$this->dbuser = $dbuser;
+
 		$this->dbh = @mysql_connect($dbhost, $dbuser, $dbpassword, true);
 		if (!$this->dbh) {
 			$this->bail(sprintf(/*WP_I18N_DB_CONN_ERROR*/"
@@ -433,7 +462,7 @@ class wpdb {
 	<li>Are you sure that the database server is running?</li>
 </ul>
 <p>If you're unsure what these terms mean you should probably contact your host. If you still need help you can always visit the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>
-"/*/WP_I18N_DB_CONN_ERROR*/, $dbhost));
+"/*/WP_I18N_DB_CONN_ERROR*/, $dbhost), 'db_connect_fail');
 			return;
 		}
 
@@ -563,7 +592,7 @@ class wpdb {
 <li>Does the user <code>%2$s</code> have permission to use the <code>%1$s</code> database?</li>
 <li>On some systems the name of your database is prefixed with your username, so it would be like <code>username_%1$s</code>. Could that be the problem?</li>
 </ul>
-<p>If you don\'t know how to setup a database you should <strong>contact your host</strong>. If all else fails you may find help at the <a href="http://wordpress.org/support/">WordPress Support Forums</a>.</p>'/*/WP_I18N_DB_SELECT_DB*/, $db, DB_USER));
+<p>If you don\'t know how to setup a database you should <strong>contact your host</strong>. If all else fails you may find help at the <a href="http://wordpress.org/support/">WordPress Support Forums</a>.</p>'/*/WP_I18N_DB_SELECT_DB*/, $db, $this->dbuser), 'db_select_fail');
 			return;
 		}
 	}
@@ -894,7 +923,6 @@ class wpdb {
 			$return_val = $this->num_rows;
 			
 			// --- DB Cache Start ---
-			$dbcr_cached['last_error'] = $this->last_error;
 			$dbcr_cached['last_query'] = $this->last_query;
 			$dbcr_cached['last_result'] = $this->last_result;
 			$dbcr_cached['col_info'] = $this->col_info;
@@ -906,7 +934,7 @@ class wpdb {
 			++$this->num_cachequeries;
 			
 			$dbcr_cached = unserialize( $dbcr_cached );
-			$this->last_error = $dbcr_cached['last_error'];
+			$this->last_error = '';
 			$this->last_query = $dbcr_cached['last_query'];
 			$this->last_result = $dbcr_cached['last_result'];
 			$this->col_info = $dbcr_cached['col_info'];
@@ -914,8 +942,9 @@ class wpdb {
 			
 			$return_val = $this->num_rows;
 			
-			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES )
+			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES ) {
 				$this->queries[] = array( $query, $this->timer_stop(), $this->get_caller(), true );
+			}
 		} else { // if no cached
 			$this->result = @mysql_query($query, $this->dbh);
 			++$this->num_queries;
@@ -1242,13 +1271,14 @@ class wpdb {
 	 *
 	 * @since 1.5.0
 	 *
-	 * @param string $message
+	 * @param string $message The Error message
+	 * @param string $error_code (optional) A Computer readable string to identify the error.
 	 * @return false|void
 	 */
-	function bail($message) {
+	function bail($message, $error_code = '500') {
 		if ( !$this->show_errors ) {
 			if ( class_exists('WP_Error') )
-				$this->error = new WP_Error('500', $message);
+				$this->error = new WP_Error($error_code, $message);
 			else
 				$this->error = $message;
 			return false;
@@ -1281,8 +1311,7 @@ class wpdb {
 	 *
 	 * @return bool True if collation is supported, false if version does not
 	 */
-	function supports_collation()
-	{
+	function supports_collation() {
 		return $this->has_cap( 'collation' );
 	}
 

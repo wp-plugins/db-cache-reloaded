@@ -2,8 +2,8 @@
 Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
-Tested up to: 2.8.5
-Stable tag: 1.4.2
+Tested up to: 2.9.9
+Stable tag: 2.0
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -15,7 +15,9 @@ I think you've heard of [WP-Cache](http://wordpress.org/extend/plugins/wp-cache/
 
 This plugin is a fork of a [DB Cache](http://wordpress.org/extend/plugins/db-cache/) plugin. Because his author did not updated its plugin to WordPress 2.8, I finally (after almost three months since release of WP 2.8) took his plugin and updated it so now it works with newest WordPress version. Additionally I fixed few bugs, cleaned up the code and make it more secure.
 
-This plugin was tested with WordPress 2.8. It may work with earlier versions too - I have not tested. If you perform such tests, let me know of the results.
+This plugin was tested with WordPress 2.8 and never. It may work with earlier versions too - I have not tested. If you perform such tests, let me know of the results.
+
+If you are using WordPress 2.9, please use DB Cache Reloaded version 2.0 or never - versions 1.x are not compatible with WordPress 2.9.
 
 Available translations:
 
@@ -23,6 +25,7 @@ Available translations:
 * Polish (pl_PL) - done by me
 * Italian (it_IT) - thanks [Iacopo](http://www.iacchi.org/)
 * Portuguese Brazilian (pt_BR) - thanks [Calebe Aires](http://gattune.blog.br/)
+* Belorussian (be_BY) - thanks [FatCow](http://www.fatcow.com/)
 
 [Changelog](http://wordpress.org/extend/plugins/db-cache-reloaded/changelog/)
 
@@ -37,7 +40,9 @@ Available translations:
 = How do I know my blog is being cached? =
 
 Check your cache directory wp-content/tmp/ for cache files. Check the load statistics in footer.
-Also you can set DBC_DEBUG to true in db-cache-reloaded.php file to display as hidden comments on your html page, what queries were loaded from cache and what from mysql.
+Also you can set `DBCR_DEBUG` to true in db-cache-reloaded.php file to display as hidden comments on your html page, what queries were loaded from cache and what from mysql.
+
+You can also define `DBCR_SAVEQUERIES` in wp-config.php file - it works similarly as defining `SAVEQUERIES`, but DB Cache Reloaded adds one extra field to the `$wpdb->queries` array - boolean value indicating if query was executed directly (`false`) or loaded from cache (`true`). Of course you can also use some extra code (e.g. some plugin) do display this data.
 
 = What does this plugin do? =
 
@@ -89,6 +94,18 @@ Make sure wp-content is writeable by the web server. If not you'll need to [chmo
 
 By default DB Cache Reloaded shows number of cached queries in hidden HTML comment in page footer. When you see -1 as a cached queries count, this means that caching is not active. Please make sure that you have enabled caching on settings page (DB Cache Reloaded also shows message in admin backend when caching is not enabled). If caching is enabled and you still see -1, this is a result of conflict with other plugin, which wants to replace default `wpdb` class with its own too. You have to disable plugins one by one until you find one which causes this conflict. If you have added custom code to your wp-config.php (or other file) in order to install plugin, please remove (or comment out) it too. When you find conflicting plugin, please notify its author about this problem.
 
+You can also try to enable Wrapper Mode - it may help.
+
+= Why plugin shows 0 as number of cached queries? =
+
+Please check if you have enabled caching. If yes, this may indicate some problems with your plugins - check previous question (Why plugin shows -1 as number of cached queries?) for more details.
+
+= What is the Wrapper Mode? =
+
+When DB Cache Reloaded works in Wrapper Mode, it uses different method to load DB Module. By default plugin assumes that WordPress will be able to load wp-content/db.php. However sometimes other plugin may load wp-includes/wp-db.php file directly, or replace value of `$wpdb` variable. This usually does not allow DB Cache Reloaded to work. When you enable Wrapper Mode, DB Cache Reloaded will load a bit different DB Module, which adds caching and works as a proxy for DB Module loaded by other plugin. Depending on your plugin, everything may work smoothly, or there may be some issues.
+
+Wrapper is also a bit slower then normal method, and does not cache all queries (usually one, but some plugins may increase this number). It also requires at least PHP 5 to work.
+
 = I am a plugin developer. How can I make my plugin compatible with DB Cache Reloaded? =
 
 DB Cache Reloaded uses default WordPress mechanism to load custom version of `wpdb` class - it creates custom wp-content/db.php file. WordPress checks if this file exists, and loads it instead of wp-includes/wp-db.php.
@@ -104,6 +121,14 @@ Note: when you use derivation, make sure you create object of your class very ea
 By default DB Cache Reloaded saves cached queries in `wp-content/tmp dir` (or another, if you changed value of `WP_CONTENT_DIR` constant). If you want to change this location, please define `DBCR_CACHE_DIR` constant in your `wp-config.php` file - it should point to existing directory. DB Cache Reloaded will use it instead of default location.
 
 == Changelog ==
+
+= 2.0 =
+* Merged changes introduced in WordPress 2.9 (make sure you upgrade DB Cache Reloaded to version 2.0 before upgrading WordPress to version 2.9 - earlier plugin versions are not compatible with WP 2.9!);
+* Marked plugin as compatible with WP 2.9;
+* Added Wrapper Mode - with it DB Cache Reloaded can work with some incompatible plugins, like WP Tuner;
+* Added Belorussian translation (thanks FatCow);
+* Fix: added missing .htaccess file;
+* Fix: remove created files if plugin cannot be activated successfully
 
 = 1.4.2 =
 * Marked as compatible with WP 2.8.5

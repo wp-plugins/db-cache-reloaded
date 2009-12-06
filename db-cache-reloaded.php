@@ -4,7 +4,7 @@ Plugin Name: DB Cache Reloaded
 Plugin URI: http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/
 Description: The fastest cache engine for WordPress, that produces cache of database queries with easy configuration. (Disable and enable caching after update)
 Author: Daniel Frużyński
-Version: 1.4.2
+Version: 2.0
 Author URI: http://www.poradnik-webmastera.com/
 Text Domain: db-cache-reloaded
 */
@@ -46,8 +46,8 @@ if ( !defined( 'DBCR_CACHE_DIR' ) ) {
 	define( 'DBCR_CACHE_DIR', WP_CONTENT_DIR.'/tmp' );
 }
 
-// Expected DB Module version (two digits for major, minor and revision numbers)
-define( 'DBCR_CURRENT_DB_MODULE_VER', 10400 );
+// DB Module version (one or more digits for major, two digits for minor and revision numbers)
+define( 'DBCR_CURRENT_DB_MODULE_VER', 10500 );
 
 
 class DBCacheReloaded {
@@ -58,6 +58,17 @@ class DBCacheReloaded {
 	// Constructor
 	function DBCacheReloaded() {
 		$this->config = unserialize( @file_get_contents( WP_CONTENT_DIR.'/db-config.ini' ) );
+		
+		// Load DB Module Wrapper if needed (1st check)
+		if ( isset( $this->config['enabled'] ) && $this->config['enabled']
+			&& isset( $this->config['wrapper'] ) && $this->config['wrapper'] ) {
+			global $wpdb, $dbcr_wpdb;
+			include DBCR_PATH.'/db-module-wrapper.php';
+			
+			// 3rd check to make sure DB Module Wrapper is loaded
+			add_filter( 'query_vars', array( &$this, 'query_vars' ) );
+		}
+		
 		$this->folders = array( DBCR_CACHE_DIR,  DBCR_CACHE_DIR.'/options', 
 			DBCR_CACHE_DIR.'/links', DBCR_CACHE_DIR.'/terms', 
 			DBCR_CACHE_DIR.'/users', DBCR_CACHE_DIR.'/posts' );
@@ -109,6 +120,33 @@ class DBCacheReloaded {
 		if ( function_exists( 'load_plugin_textdomain' ) ) {
 			load_plugin_textdomain( 'db-cache-reloaded', PLUGINDIR.'/'.dirname(plugin_basename(__FILE__)) );
 		}
+		
+		// 2nd check
+		global $wpdb;
+		if ( isset( $this->config['enabled'] ) && $this->config['enabled']
+			&& isset( $this->config['wrapper'] ) && $this->config['wrapper']
+			&& !isset ( $wpdb->dbcr_version ) ) {
+			// Looks that other plugin replaced our object in the meantime - need to fix this
+			global $dbcr_wpdb;
+			$dbcr_wpdb->dbcr_wpdb = $wpdb;
+			$wpdb = $dbcr_wpdb;
+		}
+	}
+	
+	// 3rd check to make sure DB Module Wrapper is loaded
+	function query_vars( $vars ) {
+		// 3rd check
+		global $wpdb;
+		if ( isset( $this->config['enabled'] ) && $this->config['enabled']
+			&& isset( $this->config['wrapper'] ) && $this->config['wrapper']
+			&& !isset ( $wpdb->dbcr_version ) ) {
+			// Looks that other plugin replaced our object in the meantime - need to fix this
+			global $dbcr_wpdb;
+			$dbcr_wpdb->dbcr_wpdb = $wpdb;
+			$wpdb = $dbcr_wpdb;
+		}
+		
+		return $vars;
 	}
 	
 	function admin_notices() {
@@ -180,49 +218,71 @@ class DBCacheReloaded {
 	}
 
 	// Enable
-	function dbcr_enable() {
-		$status = false;
-		if ( @copy( DBCR_PATH."/db-module.php", WP_CONTENT_DIR."/db.php" ) ) {
-			$status = true;
+	function dbcr_enable( $echo = true ) {
+		$status = true;
+		
+		// Copy DB Module (if needed)
+		if ( !isset( $this->config['wrapper'] ) || !$this->config['wrapper'] ) {
+			if ( !@copy( DBCR_PATH."/db-module.php", WP_CONTENT_DIR."/db.php" ) ) {
+				$status = false;
+			}
 		}
 		
-		foreach( $this->folders as $folder ) {
-			if ( $status && @mkdir( $folder, 0755 ) ) {
-				$status = true;
-			}
-			if ( @copy( DBCR_PATH."/.htaccess", WP_CONTENT_DIR.$folder."/.htaccess" ) ) {
-				$status = true;
-			}
-		}
-	
+		// Copy .htaccess file
 		if ( $status ) {
-			echo '<div id="message" class="updated fade"><p>';
-			_e('Caching activated.', 'db-cache-reloaded');
-			echo '</p></div>';
-			return true;
-		} else {
-			echo '<div id="message" class="error"><p>';
-			_e('Caching can\'t be activated. Please <a href="http://codex.wordpress.org/Changing_File_Permissions" target="blank">chmod 755</a> <u>wp-content</u> folder', 'db-cache-reloaded');
-			echo '</p></div>';
-			return false;
 		}
+		
+		// Create cache dirs
+		if ( $status ) {
+			foreach( $this->folders as $folder ) {
+				if ( !@mkdir( $folder, 0755 ) ) {
+					$status = false;
+					break;
+				}
+				if ( !@copy( DBCR_PATH.'/.htaccess', $folder.'/.htaccess' ) ) {
+					$status = false;
+				}
+			}
+		}
+		
+		if ( $echo ) {
+			if ( $status ) {
+				echo '<div id="message" class="updated fade"><p>';
+				_e('Caching activated.', 'db-cache-reloaded');
+				echo '</p></div>';
+			} else {
+				echo '<div id="message" class="error"><p>';
+				_e('Caching can\'t be activated. Please <a href="http://codex.wordpress.org/Changing_File_Permissions" target="blank">chmod 755</a> <u>wp-content</u> folder', 'db-cache-reloaded');
+				echo '</p></div>';
+			}
+		}
+		
+		if ( !$status ) {
+			$this->dbcr_disable( $echo );
+		}
+		
+		return $status;
 	}
 
 	// Disable
-	function dbcr_disable() {
-		$this->dbcr_uninstall();
-		echo '<div id="message" class="updated fade"><p>';
-		_e('Caching deactivated. Cache files deleted.', 'db-cache-reloaded');
-		echo '</p></div>';
+	function dbcr_disable( $echo = true ) {
+		$this->dbcr_uninstall( false );
+		if ( $echo ) {
+			echo '<div id="message" class="updated fade"><p>';
+			_e('Caching deactivated. Cache files deleted.', 'db-cache-reloaded');
+			echo '</p></div>';
+		}
 		
 		return true;
 	}
 
 	// Uninstall
-	function dbcr_uninstall() {
+	function dbcr_uninstall( $remove_all = true ) {
 		$this->dbcr_clear();
 		@unlink( WP_CONTENT_DIR.'/db.php' );
-		@unlink( WP_CONTENT_DIR.'/db-config.ini' );
+		if ( $remove_all ) {
+			@unlink( WP_CONTENT_DIR.'/db-config.ini' );
+		}
 		@unlink( DBCR_CACHE_DIR.'/.htaccess' );
 		
 		foreach( $this->folders as $folder ) {
@@ -271,6 +331,9 @@ class DBCacheReloaded {
 		}
 		if ( !isset( $this->config['filter'] ) ) {
 			$this->config['filter'] = '_posts|_postmeta';
+		}
+		if ( !isset( $this->config['wrapper'] ) ) {
+			$this->config['wrapper'] = false;
 		}
 		if ( defined( 'DBCR_DEBUG' ) && DBCR_DEBUG ) {
 			$this->config['debug'] = 1;
@@ -322,12 +385,13 @@ class DBCacheReloaded {
 			} elseif ( isset( $this->config['enabled'] ) && $this->config['enabled'] == 1 && !$cache_enabled ) {
 				if ( !$this->dbcr_enable() ) {
 					unset( $this->config['enabled'] );
+					unset( $saveconfig['enabled'] );
 				} else {
 					$this->config['lastclean'] = time();
 				}
 			}
 		
-			$file = fopen( WP_CONTENT_DIR."/db-config.ini", 'w+' );
+			$file = @fopen( WP_CONTENT_DIR."/db-config.ini", 'w+' );
 			if ( $file ) {
 				fwrite( $file, serialize( $saveconfig ) );
 				fclose( $file );
@@ -366,6 +430,30 @@ class DBCacheReloaded {
 	<tr valign="top">
 		<?php $this->dbcr_field_text( 'loadstat', __('Load stats template', 'db-cache-reloaded'), 
 			'<br/>'.__('It shows resources usage statistics in your template footer. To disable view just leave this field empty.<br/>{timer} - generation time, {queries} - count of queries to DB, {cached} - cached queries, {memory} - memory', 'db-cache-reloaded'), 'size="100"' ); ?>
+	</tr>
+</table>
+
+<h3><?php _e('Advanced', 'db-cache-reloaded'); ?></h3>
+<table class="form-table">
+	<tr valign="top">
+	<?php 
+		$wrapper_msg = __('Wrapper Mode uses different method to load DB Module. It is less efficient (at least one query is not cached; some plugins may increase this number) and a bit slower. It allows to use DB Cache Reloaded along with incompatible plugins, which tries to load its own DB Module. You can try it if your cached query count is zero or -1.', 'db-cache-reloaded');
+		if ( version_compare( PHP_VERSION, '5',  '<' ) ) {
+		echo '<td colspan="2">';
+		printf( __( 'Wrapper Mode requires at least PHP 5, and you are using PHP %s now. Please read the <a href="http://codex.wordpress.org/Switching_to_PHP5">Switching to PHP5</a> article for information how to switch to PHP 5.', 'db-cache-reloaded' ), PHP_VERSION );
+		echo '<br/ ><br />', $wrapper_msg, '</td>';
+	} elseif ( isset( $this->config['enabled'] ) && $this->config['enabled'] ) {
+		echo '<td colspan="2">';
+		echo '<input type="hidden" name="options[wrapper]" value="', isset( $this->config['wrapper'] ) && $this->config['wrapper'] ? 1 : 0, '" />';
+		if ( isset( $this->config['wrapper'] ) && $this->config['wrapper'] ) {
+			_e( 'Wrapper Mode is <strong>Enabled</strong>. In order to disable it, please disable cache first.', 'db-cache-reloaded' );
+		} else {
+			_e( 'Wrapper Mode is <strong>Disabled</strong>. In order to enable it, please disable cache first.', 'db-cache-reloaded' );
+		}
+		echo '<br />', $wrapper_msg, '</td>';
+	} else { ?>
+		<?php $this->dbcr_field_checkbox( 'wrapper', __('Enable Wrapper Mode', 'db-cache-reloaded'), '<br />'.$wrapper_msg ); ?>
+	<?php } ?>
 	</tr>
 </table>
 
