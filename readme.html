@@ -2,10 +2,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>	
 <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-<title>DB Cache Reloaded 2.0 Readme</title>
+<title>DB Cache Reloaded 2.0.1 Readme</title>
 </head>
 <body>
-<h1>DB Cache Reloaded 2.0 Readme</h1>
+<h1>DB Cache Reloaded 2.0.1 Readme</h1>
 <p>The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.</p>
 <p><b>Plugin Homepage:</b> <a href="http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/">DB Cache Reloaded</a></p>
 <p><b>Plugin Homepage on WordPress.org:</b> <a href="http://wordpress.org/extend/plugins/db-cache-reloaded/">DB Cache Reloaded</a></p>
@@ -94,6 +94,10 @@ It saves information separately and also caches hidden requests to database.</p>
 <p>By default DB Cache Reloaded saves cached queries in <code>wp-content/tmp</code> dir (or another, if you changed value of <code>WP_CONTENT_DIR</code> constant). If you want to change this location, please define <code>DBCR_CACHE_DIR</code> constant in your <code>wp-config.php</code> file - it should point to existing directory. DB Cache Reloaded will use it instead of default location.</p>
 
 <h2>Changelog</h2>
+<p>2.0.1</p>
+<ul>
+<li>Fix: WordPress plugin repository does not add hidden (.name) files to release archives - added workaround</li>
+</ul>
 <p>2.0</p>
 <ul>
 <li>Merged changes introduced in WordPress 2.9 (make sure you upgrade DB Cache Reloaded to version 2.0 before upgrading WordPress to version 2.9 - earlier plugin versions are not compatible with WP 2.9!);</li>

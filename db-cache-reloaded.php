@@ -4,7 +4,7 @@ Plugin Name: DB Cache Reloaded
 Plugin URI: http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/
 Description: The fastest cache engine for WordPress, that produces cache of database queries with easy configuration. (Disable and enable caching after update)
 Author: Daniel Frużyński
-Version: 2.0
+Version: 2.0.1
 Author URI: http://www.poradnik-webmastera.com/
 Text Domain: db-cache-reloaded
 */
@@ -228,18 +228,14 @@ class DBCacheReloaded {
 			}
 		}
 		
-		// Copy .htaccess file
-		if ( $status ) {
-		}
-		
-		// Create cache dirs
+		// Create cache dirs and copy .htaccess
 		if ( $status ) {
 			foreach( $this->folders as $folder ) {
 				if ( !@mkdir( $folder, 0755 ) ) {
 					$status = false;
 					break;
 				}
-				if ( !@copy( DBCR_PATH.'/.htaccess', $folder.'/.htaccess' ) ) {
+				if ( !@copy( DBCR_PATH.'/htaccess', $folder.'/.htaccess' ) ) {
 					$status = false;
 				}
 			}
