@@ -20,7 +20,7 @@ if ( !defined( 'DBCR_CACHE_DIR' ) ) {
 
 // DB Module version (one or more digits for major, two digits for minor and revision numbers)
 if ( !defined( 'DBCR_DB_MODULE_VER' ) ) {
-	define( 'DBCR_DB_MODULE_VER', 10500 );
+	define( 'DBCR_DB_MODULE_VER', 10501 );
 }
 
 // HACK: need to enable SAVEQUERY in order to save extended query data

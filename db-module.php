@@ -72,7 +72,7 @@ if ( !defined( 'DBCR_CACHE_DIR' ) ) {
 
 // DB Module version (one or more digits for major, two digits for minor and revision numbers)
 if ( !defined( 'DBCR_DB_MODULE_VER' ) ) {
-	define( 'DBCR_DB_MODULE_VER', 10500 );
+	define( 'DBCR_DB_MODULE_VER', 10501 );
 }
 
 // --- DB Cache End ---
@@ -440,7 +440,7 @@ class wpdb {
 	function __construct($dbuser, $dbpassword, $dbname, $dbhost) {
 		register_shutdown_function(array(&$this, "__destruct"));
 
-		if ( defined('WP_DEBUG') and WP_DEBUG == true )
+		if ( defined('WP_DEBUG') && WP_DEBUG )
 			$this->show_errors();
 
 		if ( defined('DB_CHARSET') )
@@ -468,7 +468,7 @@ class wpdb {
 
 		$this->ready = true;
 
-		if ( $this->has_cap( 'collation' ) ) {
+		if ( $this->has_cap( 'collation' ) ) { // left for WP2.8 compatibility
 			if ( !empty($this->charset) ) {
 				if ( function_exists('mysql_set_charset') ) {
 					mysql_set_charset($this->charset, $this->dbh);
@@ -1297,9 +1297,15 @@ class wpdb {
 	function check_database_version()
 	{
 		global $wp_version;
-		// Make sure the server has MySQL 4.0
-		if ( version_compare($this->db_version(), '4.0.0', '<') )
-			return new WP_Error('database_version',sprintf(__('<strong>ERROR</strong>: WordPress %s requires MySQL 4.0.0 or higher'), $wp_version));
+		if ( version_compare( $wp_version, '2.9', '<' ) ) { // WP 2.8 requires MySQL 4.0.0
+			// Make sure the server has MySQL 4.0
+			if ( version_compare($this->db_version(), '4.0.0', '<') )
+				return new WP_Error('database_version',sprintf(__('<strong>ERROR</strong>: WordPress %s requires MySQL 4.0.0 or higher'), $wp_version));
+		} else { // WP 2.9 requires MySQL 4.1.2
+			// Make sure the server has MySQL 4.1.2
+			if ( version_compare($this->db_version(), '4.1.2', '<') )
+				return new WP_Error('database_version',sprintf(__('<strong>ERROR</strong>: WordPress %s requires MySQL 4.1.2 or higher'), $wp_version));
+		}
 	}
 
 	/**
