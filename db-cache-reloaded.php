@@ -4,13 +4,13 @@ Plugin Name: DB Cache Reloaded
 Plugin URI: http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/
 Description: The fastest cache engine for WordPress, that produces cache of database queries with easy configuration. (Disable and enable caching after update)
 Author: Daniel Frużyński
-Version: 2.0.2
+Version: 2.1
 Author URI: http://www.poradnik-webmastera.com/
 Text Domain: db-cache-reloaded
 */
 
-/*  Original code Copyright Dmitry Svarytsevych
-    Modifications Copyright 2009  Daniel Frużyński  (email : daniel [A-T] poradnik-webmastera.com)
+/*  Copyright 2009-2010  Daniel Frużyński  (email : daniel [A-T] poradnik-webmastera.com)
+    Based on DB Cache by Dmitry Svarytsevych
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -29,53 +29,65 @@ Text Domain: db-cache-reloaded
 
 define( 'DBCR_DEBUG', false );
 
-// Support for older versions
-if ( !defined('WP_CONTENT_DIR') ) {
-	define( 'WP_CONTENT_DIR', ABSPATH.'wp-content' );
-}
-if ( !defined( 'WP_PLUGIN_DIR' ) ) {
-	define( 'WP_PLUGIN_DIR', WP_CONTENT_DIR.'/plugins' ); // full path, no trailing slash
-}
-
 // Path to plugin
 if ( !defined( 'DBCR_PATH' ) ) {
-	define( 'DBCR_PATH', WP_PLUGIN_DIR.'/db-cache-reloaded' );
+	define( 'DBCR_PATH', dirname( __FILE__ ) );
 }
 // Cache directory
 if ( !defined( 'DBCR_CACHE_DIR' ) ) {
 	define( 'DBCR_CACHE_DIR', WP_CONTENT_DIR.'/tmp' );
 }
 
-// DB Module version (one or more digits for major, two digits for minor and revision numbers)
-define( 'DBCR_CURRENT_DB_MODULE_VER', 10501 );
+// Check if we have required functions
+if ( !function_exists( 'is_multisite' ) ) { // Added in WP 3.0
+	function is_multisite() {
+		return false;
+	}
+}
 
+// DB Module version (one or more digits for major, two digits for minor and revision numbers)
+define( 'DBCR_CURRENT_DB_MODULE_VER', 10600 );
+
+// Load pcache class if needed
+if ( !class_exists('pcache') ) {
+	include DBCR_PATH.'/db-functions.php';
+}
+
+if ( !class_exists( 'DBCacheReloaded' ) ) {
 
 class DBCacheReloaded {
 	var $config = null;
 	var $folders = null;
 	var $settings_page = false;
+	var $dbcr_cache = null;
 	
 	// Constructor
 	function DBCacheReloaded() {
 		$this->config = unserialize( @file_get_contents( WP_CONTENT_DIR.'/db-config.ini' ) );
 		
 		// Load DB Module Wrapper if needed (1st check)
+		global $wpdb;
 		if ( isset( $this->config['enabled'] ) && $this->config['enabled']
 			&& isset( $this->config['wrapper'] ) && $this->config['wrapper'] ) {
-			global $wpdb, $dbcr_wpdb;
+			global $dbcr_wpdb;
 			include DBCR_PATH.'/db-module-wrapper.php';
 			
 			// 3rd check to make sure DB Module Wrapper is loaded
 			add_filter( 'query_vars', array( &$this, 'query_vars' ) );
 		}
 		
-		$this->folders = array( DBCR_CACHE_DIR,  DBCR_CACHE_DIR.'/options', 
-			DBCR_CACHE_DIR.'/links', DBCR_CACHE_DIR.'/terms', 
-			DBCR_CACHE_DIR.'/users', DBCR_CACHE_DIR.'/posts' );
+		// Set our copy of pcache object
+		if ( isset ( $wpdb->dbcr_cache ) ) {
+			$this->dbcr_cache =& $wpdb->dbcr_cache;
+		} else {
+			$this->dbcr_cache =& new pcache();
+		}
 		
 		// Initialise plugin
 		add_action( 'init', array( &$this, 'init' ) );
 		
+		// Install/Upgrade
+		add_action( 'activate_'.plugin_basename( __FILE__ ), array( &$this, 'dbcr_install' ) );
 		// Uninstall
 		add_action( 'deactivate_'.plugin_basename( __FILE__ ), array( &$this, 'dbcr_uninstall' ) );
 		
@@ -105,10 +117,18 @@ class DBCacheReloaded {
 			add_action( 'load-settings_page_'.substr( plugin_basename( __FILE__ ), 0, -4 ), array( &$this, 'load_settings_page' ) );
 			
 			// Create options menu
-			add_action( 'admin_menu', array( &$this, 'dbcr_admin_menu' ) );
+			add_action( 'admin_menu', array( &$this, 'admin_menu' ) );
 			
-			// Hook for all actions
-			add_action( 'all', array( &$this, 'all_actions' ) );
+			// Clear cache when option is changed
+			global $wp_version;
+			if ( version_compare( $wp_version, '2.9', '>=' ) ) {
+				add_action( 'added_option', array( &$this, 'dbcr_clear' ), 0 );
+				add_action( 'updated_option', array( &$this, 'dbcr_clear' ), 0 );
+				add_action( 'deleted_option', array( &$this, 'dbcr_clear' ), 0 );
+			} else {
+				// Hook for all actions
+				add_action( 'all', array( &$this, 'all_actions' ) );
+			}
 			
 			// Provide icon for Ozh' Admin Drop Down Menu plugin
 			add_action( 'ozh_adminmenu_icon_'.plugin_basename( __FILE__ ), array( &$this, 'ozh_adminmenu_icon' ) );
@@ -117,9 +137,7 @@ class DBCacheReloaded {
 	
 	// Initialise plugin
 	function init() {
-		if ( function_exists( 'load_plugin_textdomain' ) ) {
-			load_plugin_textdomain( 'db-cache-reloaded', PLUGINDIR.'/'.dirname(plugin_basename(__FILE__)) );
-		}
+		load_plugin_textdomain( 'db-cache-reloaded', false, dirname( plugin_basename( __FILE__ ) ).'/lang' );
 		
 		// 2nd check
 		global $wpdb;
@@ -133,6 +151,12 @@ class DBCacheReloaded {
 		}
 	}
 	
+	// Create options menu
+	function admin_menu() {
+		add_submenu_page( 'options-general.php', 'DB Cache Reloaded', 'DB Cache Reloaded', 
+			'manage_options', __FILE__, array( &$this, 'options_page' ) );
+	}
+
 	// 3rd check to make sure DB Module Wrapper is loaded
 	function query_vars( $vars ) {
 		// 3rd check
@@ -211,34 +235,20 @@ class DBCacheReloaded {
 		$this->settings_page = true;
 	}
 
-	// Create options menu
-	function dbcr_admin_menu() {
-		add_submenu_page( 'options-general.php', 'DB Cache Reloaded', 'DB Cache Reloaded', 
-			10, __FILE__, array( &$this, 'dbcr_options_page' ) );
-	}
-
-	// Enable
+	// Enable cache
 	function dbcr_enable( $echo = true ) {
 		$status = true;
 		
 		// Copy DB Module (if needed)
 		if ( !isset( $this->config['wrapper'] ) || !$this->config['wrapper'] ) {
-			if ( !@copy( DBCR_PATH."/db-module.php", WP_CONTENT_DIR."/db.php" ) ) {
+			if ( !@copy( DBCR_PATH.'/db-module.php', WP_CONTENT_DIR.'/db.php' ) ) {
 				$status = false;
 			}
 		}
 		
 		// Create cache dirs and copy .htaccess
 		if ( $status ) {
-			foreach( $this->folders as $folder ) {
-				if ( !@mkdir( $folder, 0755 ) ) {
-					$status = false;
-					break;
-				}
-				if ( !@copy( DBCR_PATH.'/htaccess', $folder.'/.htaccess' ) ) {
-					$status = false;
-				}
-			}
+			$status = $this->dbcr_cache->install();
 		}
 		
 		if ( $echo ) {
@@ -260,7 +270,7 @@ class DBCacheReloaded {
 		return $status;
 	}
 
-	// Disable
+	// Disable cache
 	function dbcr_disable( $echo = true ) {
 		$this->dbcr_uninstall( false );
 		if ( $echo ) {
@@ -271,8 +281,16 @@ class DBCacheReloaded {
 		
 		return true;
 	}
+	
+	// Install plugin
+	function dbcr_install() {
+		if ( isset( $this->config['enabled'] ) && $this->config['enabled'] ) { // This should be a plugin upgrade
+			$this->dbcr_uninstall( false );
+			$this->dbcr_enable( false ); // No echo - ob_start()/ob_ob_end_clean() is used in installer
+		}
+	}
 
-	// Uninstall
+	// Uninstall plugin
 	function dbcr_uninstall( $remove_all = true ) {
 		$this->dbcr_clear();
 		@unlink( WP_CONTENT_DIR.'/db.php' );
@@ -281,23 +299,14 @@ class DBCacheReloaded {
 		}
 		@unlink( DBCR_CACHE_DIR.'/.htaccess' );
 		
-		foreach( $this->folders as $folder ) {
-			@unlink( $folder.'/.htaccess' );
-			@rmdir( $folder.'/' );
-		}
+		$this->dbcr_cache->uninstall();
+		
 		@rmdir( DBCR_CACHE_DIR );
 	}
 
 	// Clears the cache folder
 	function dbcr_clear() {
-		if ( !class_exists('pcache') ) {
-			include DBCR_PATH."/db-functions.php";
-		}
-		$dbcr = new pcache();
-		
-		$dbcr->storage = DBCR_CACHE_DIR;
-		
-		$dbcr->clean( false );
+		$this->dbcr_cache->clean( false );
 	}
 	
 	// Format version number
@@ -310,7 +319,7 @@ class DBCacheReloaded {
 	}
 	
 	// Settings page
-	function dbcr_options_page() {
+	function options_page() {
 		if ( !isset( $this->config['timeout'] ) || intval( $this->config['timeout'] ) == 0) {
 			$this->config['timeout'] = 5;
 		} else {
@@ -335,23 +344,15 @@ class DBCacheReloaded {
 			$this->config['debug'] = 1;
 		}
 		
-		if ( !class_exists( 'pcache' ) ) {
-			include DBCR_PATH."/db-functions.php";
-		}
-		
 		if ( isset( $_POST['clear'] ) ) {
 			check_admin_referer( 'db-cache-reloaded-update-options' );
-			$db_cache = new pcache();
-			$db_cache->storage = DBCR_CACHE_DIR;
-			$db_cache->clean( false );
+			$this->dbcr_cache->clean( false );
 			echo '<div id="message" class="updated fade"><p>';
 			_e('Cache files deleted.', 'db-cache-reloaded');
 			echo '</p></div>';
 		} elseif ( isset( $_POST['clearold'] ) ) {
 			check_admin_referer( 'db-cache-reloaded-update-options' );
-			$db_cache = new pcache();
-			$db_cache->storage = DBCR_CACHE_DIR;
-			$db_cache->clean();
+			$this->dbcr_cache->clean();
 			echo '<div id="message" class="updated fade"><p>';
 			_e('Expired cache files deleted.', 'db-cache-reloaded');
 			echo '</p></div>';
@@ -402,6 +403,7 @@ class DBCacheReloaded {
 		}
 ?>
 <div class="wrap">
+<?php screen_icon(); ?>
 <form method="post">
 <?php wp_nonce_field('db-cache-reloaded-update-options'); ?>
 <h2><?php _e('DB Cache Reloaded - Options', 'db-cache-reloaded'); ?></h2>
@@ -525,6 +527,20 @@ function get_num_cachequeries() {
 	}
 }
 
+function get_num_dml_queries() {
+	global $wpdb, $wp_db_cache_reloaded;
+	if ( isset( $wpdb->dbcr_num_dml_queries ) ) {
+		// DB Module loaded
+		return $wpdb->dbcr_num_dml_queries;
+	} elseif ( !isset( $wp_db_cache_reloaded->config['enabled'] ) || !$wp_db_cache_reloaded->config['enabled'] ) {
+		// Cache disabled
+		return 0;
+	} else {
+		// Probably conflict with another plugin or configuration issue :)
+		return -1;
+	}
+}
+
 /* 
 Function to display load statistics
 Put in your template <? loadstats(); ?>
@@ -532,18 +548,21 @@ Put in your template <? loadstats(); ?>
 function loadstats() {
 	global $wp_db_cache_reloaded;
 
-	if ( strlen( $wp_db_cache_reloaded->config['loadstat'] ) > 7) {
+	if ( strlen( $wp_db_cache_reloaded->config['loadstat'] ) > 7 ) {
 		$stats['timer'] = timer_stop();
 		$replace['timer'] = "{timer}";
 		
 		$stats['normal'] = get_num_queries();
 		$replace['normal'] = "{queries}";
 		
+		$stats['dml'] = get_num_dml_queries();
+		$replace['dml'] = "{dml_queries}";
+		
 		$stats['cached'] = get_num_cachequeries();
 		$replace['cached'] = "{cached}";
 		
 		if ( function_exists( 'memory_get_usage' ) ) {
-			$stats['memory'] = round( memory_get_usage()/1024/1024, 2) . 'MB';
+			$stats['memory'] = round( memory_get_usage()/1024/1024, 2 ) . 'MB';
 		} else {
 			$stats['memory'] = 'N/A';
 		}
@@ -556,5 +575,7 @@ function loadstats() {
 	
 	echo "\n<!-- Cached by DB Cache Reloaded -->\n";
 }
+
+} // END
 
 ?>

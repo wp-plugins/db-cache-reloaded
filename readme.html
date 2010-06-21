@@ -2,10 +2,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
 <head>	
 <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
-<title>DB Cache Reloaded 2.0.2 Readme</title>
+<title>DB Cache Reloaded 2.1 Readme</title>
 </head>
 <body>
-<h1>DB Cache Reloaded 2.0.2 Readme</h1>
+<h1>DB Cache Reloaded 2.1 Readme</h1>
 <p>The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.</p>
 <p><b>Plugin Homepage:</b> <a href="http://www.poradnik-webmastera.com/projekty/db_cache_reloaded/">DB Cache Reloaded</a></p>
 <p><b>Plugin Homepage on WordPress.org:</b> <a href="http://wordpress.org/extend/plugins/db-cache-reloaded/">DB Cache Reloaded</a></p>
@@ -18,6 +18,7 @@
 <p>This plugin is a fork of a DB Cache plugin. Because his author did not updated its plugin to WordPress 2.8, I finally (after almost three months since release of WP 2.8) took his plugin and updated it so now it works with newest WordPress version. Additionally I fixed few bugs, cleaned up the code and make it more secure.</p>
 <p>This plugin was tested with WordPress 2.8. It may work with earlier versions too - I have not tested. If you perform such tests, let me know of the results.</p>
 <p>If you are using WordPress 2.9, please use DB Cache Reloaded version 2.0 or never - versions 1.x are not compatible with WordPress 2.9.</p>
+<p>If you are using WordPress 3.0, please use DB Cache Reloaded version 2.1 or never - earlier versions are not compatible with WordPress 3.0.</p>
 <p>Available translations:</p>
 <ul>
 <li>English</li>
@@ -26,6 +27,10 @@
 <li>Portuguese Brazilian (pt_BR) - thanks Calebe Aires</li>
 <li>Belorussian (be_BY) - thanks FatCow</li>
 <li>Spanish (es_ES) - thanks Dasumo</li>
+<li>Dutch (nl_NL) - thanks Rene</li>
+<li>Turkish (tr_TR) - thanks wolkanca</li>
+<li>Japanese (jp) - thanks wokamoto</li>
+<li>German (de_DE) - thanks Carsten Tauber</li>
 </ul>
 
 <h2>Installation</h2>
@@ -95,6 +100,17 @@ It saves information separately and also caches hidden requests to database.</p>
 <p>By default DB Cache Reloaded saves cached queries in <code>wp-content/tmp</code> dir (or another, if you changed value of <code>WP_CONTENT_DIR</code> constant). If you want to change this location, please define <code>DBCR_CACHE_DIR</code> constant in your <code>wp-config.php</code> file - it should point to existing directory. DB Cache Reloaded will use it instead of default location.</p>
 
 <h2>Changelog</h2>
+<p>2.1</p>
+<ul>
+<li>Make plugin compatible with WordPress 3.0 (single site mode; multisite mode requires additional work);</li>
+<li>Added Dutch translation (thanks Rene);</li>
+<li>Added Turkish translation (thanks wolkanca);</li>
+<li>Added Japanese translation (thanks wokamoto);</li>
+<li>Added German translation (thanks Carsten Tauber);</li>
+<li>Do not cache queries which use `RAND()`;</li>
+<li>Fixed table filter not working all times (thanks poer for pointing this);</li>
+<li>Code cleanup</li>
+</ul>
 <p>2.0.2</p>
 <ul>
 <li>Merged last WP 2.9 changes: bump required MySQL version to 4.1.2 for WP 2.9;</li>

@@ -2,8 +2,8 @@
 Contributors: sirzooro
 Tags: performance, caching, wp-cache, db-cache, cache
 Requires at least: 2.8
-Tested up to: 2.9.9
-Stable tag: 2.0.2
+Tested up to: 3.0.9
+Stable tag: 2.1
 
 The fastest cache engine for WordPress, that produces cache of database queries with easy configuration - now with bugs fixed.
 
@@ -19,6 +19,8 @@ This plugin was tested with WordPress 2.8 and never. It may work with earlier ve
 
 If you are using WordPress 2.9, please use DB Cache Reloaded version 2.0 or never - versions 1.x are not compatible with WordPress 2.9.
 
+If you are using WordPress 3.0, please use DB Cache Reloaded version 2.1 or never - earlier versions are not compatible with WordPress 3.0.
+
 Available translations:
 
 * English
@@ -27,6 +29,10 @@ Available translations:
 * Portuguese Brazilian (pt_BR) - thanks [Calebe Aires](http://gattune.blog.br/)
 * Belorussian (be_BY) - thanks [FatCow](http://www.fatcow.com/)
 * Spanish (es_ES) - thanks [Dasumo](http://www.dasumo.com/)
+* Dutch (nl_NL) - thanks [Rene](http://wordpresspluginguide.com/)
+* Turkish (tr_TR) - thanks [wolkanca](http://wolkanca.com/)
+* Japanese (jp) - thanks wokamoto
+* German (de_DE) - thanks [Carsten Tauber](http://greatsolution.de/)
 
 [Changelog](http://wordpress.org/extend/plugins/db-cache-reloaded/changelog/)
 
@@ -122,6 +128,16 @@ Note: when you use derivation, make sure you create object of your class very ea
 By default DB Cache Reloaded saves cached queries in `wp-content/tmp dir` (or another, if you changed value of `WP_CONTENT_DIR` constant). If you want to change this location, please define `DBCR_CACHE_DIR` constant in your `wp-config.php` file - it should point to existing directory. DB Cache Reloaded will use it instead of default location.
 
 == Changelog ==
+
+= 2.1 =
+* Make plugin compatible with WordPress 3.0 (single site mode; multisite mode requires additional work);
+* Added Dutch translation (thanks Rene);
+* Added Turkish translation (thanks wolkanca);
+* Added Japanese translation (thanks wokamoto);
+* Added German translation (thanks Carsten Tauber);
+* Do not cache queries which use `RAND()`;
+* Fixed table filter not working all times (thanks poer for pointing this);
+* Code cleanup
 
 = 2.0.2 =
 * Merged last WP 2.9 changes: bump required MySQL version to 4.1.2 for WP 2.9;

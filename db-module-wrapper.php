@@ -1,17 +1,9 @@
 <?php
 
 // --- DB Cache Start ---
-// Support for older versions
-if ( !defined( 'WP_CONTENT_DIR' ) ) {
-	define( 'WP_CONTENT_DIR', ABSPATH.'wp-content' );
-}
-if ( !defined( 'WP_PLUGIN_DIR' ) ) {
-	define( 'WP_PLUGIN_DIR', WP_CONTENT_DIR.'/plugins' ); // full path, no trailing slash
-}
-
 // Path to plugin
 if ( !defined( 'DBCR_PATH' ) ) {
-	define( 'DBCR_PATH', WP_PLUGIN_DIR.'/db-cache-reloaded' );
+	define( 'DBCR_PATH', WP_PLUGIN_DIR.'/'.dirname( __FILE__ ) );
 }
 // Cache directory
 if ( !defined( 'DBCR_CACHE_DIR' ) ) {
@@ -20,12 +12,19 @@ if ( !defined( 'DBCR_CACHE_DIR' ) ) {
 
 // DB Module version (one or more digits for major, two digits for minor and revision numbers)
 if ( !defined( 'DBCR_DB_MODULE_VER' ) ) {
-	define( 'DBCR_DB_MODULE_VER', 10501 );
+	define( 'DBCR_DB_MODULE_VER', 10600 );
 }
 
 // HACK: need to enable SAVEQUERY in order to save extended query data
 if ( defined( 'DBCR_SAVEQUERIES' ) && DBCR_SAVEQUERIES && !defined ( 'SAVEQUERIES' ) ) {
 	define( 'SAVEQUERIES', true );
+}
+
+// Check if we have required functions
+if ( !function_exists( 'is_multisite' ) ) { // Added in WP 3.0
+	function is_multisite() {
+		return false;
+	}
 }
 
 // --- DB Cache End ---
@@ -47,6 +46,12 @@ class DBCR_WPDB_Wrapper {
 	 * @var int
 	 */
 	var $num_cachequeries = 0;
+	/**
+	 * Amount of DML queries
+	 *
+	 * @var int
+	 */
+	var $dbcr_num_dml_queries = 0;
 	/**
 	 * True if caching is active, otherwise false
 	 *
@@ -99,13 +104,10 @@ class DBCR_WPDB_Wrapper {
 			
 			$this->dbcr_cache =& new pcache();
 			$this->dbcr_cache->lifetime = isset( $this->dbcr_config['timeout'] ) ? $this->dbcr_config['timeout'] : 5;
-			$this->dbcr_cache->storage = DBCR_CACHE_DIR;
-			
-			//$dbc->config = $this->dbcr_config;
 			
 			// Clean unused
 			$dbcheck = date('G')/4;
-			if ($dbcheck == intval( $dbcheck ) && ( !isset( $this->dbcr_config['lastclean'] ) 
+			if ( $dbcheck == intval( $dbcheck ) && ( !isset( $this->dbcr_config['lastclean'] ) 
 				|| $this->dbcr_config['lastclean'] < time() - 3600 ) ) {
 				$this->dbcr_cache->clean();
 				$this->dbcr_config['lastclean'] = time();
@@ -142,7 +144,7 @@ class DBCR_WPDB_Wrapper {
 	 *
 	 * @since 0.71
 	 *
-	 * @param string $query
+	 * @param string $query Database query
 	 * @return int|false Number of rows affected/selected or false on error
 	 */
 	function query($query) {
@@ -154,20 +156,42 @@ class DBCR_WPDB_Wrapper {
 			return false;
 
 		// --- DB Cache Start ---
+		if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES )
+			$this->dbcr_wpdb->timer_start();
+		
+		$dbcr_db = 'local';
+		// --- DB Cache End ---
+		
+		if( defined( 'WP_USE_MULTIPLE_DB' ) && WP_USE_MULTIPLE_DB ) {
+			if( $this->dbcr_wpdb->blogs != '' && preg_match("/(" . $this->dbcr_wpdb->blogs . "|" . $this->dbcr_wpdb->users . "|" . $this->dbcr_wpdb->usermeta . "|" . $this->dbcr_wpdb->site . "|" . $this->dbcr_wpdb->sitemeta . "|" . $this->dbcr_wpdb->sitecategories . ")/i",$query) ) {
+				// --- DB Cache Start ---
+				$dbcr_db = 'global';
+				// --- DB Cache End ---
+			}
+		} else {
+			// DB Cache Start
+			if( $this->dbcr_wpdb->blogs != '' && preg_match("/(" . $this->dbcr_wpdb->blogs . "|" . $this->dbcr_wpdb->users . "|" . $this->dbcr_wpdb->usermeta . "|" . $this->dbcr_wpdb->site . "|" . $this->dbcr_wpdb->sitemeta . "|" . $this->dbcr_wpdb->sitecategories . ")/i",$query) ) {
+				$dbcr_db = 'global';
+			}
+			// DB Cache End
+		}
+		
+		// --- DB Cache Start ---
 		// Caching
-		$dbcr_cacheable = $this->dbcr_cacheable && $maybe_cache;
+		$dbcr_cacheable = false;
 		// check if pcache object is in place
 		if ( !is_null( $this->dbcr_cache ) ) {
+			$dbcr_cacheable = $this->dbcr_cacheable && $maybe_cache;
+			
 			if ( $dbcr_cacheable ) {
 				// do not cache non-select queries
-				if ( preg_match( "/\\s*(insert|delete|update|replace|alter|SET NAMES|FOUND_ROWS)\\b/si", $query ) ) {
+				if ( preg_match( "/\\s*(insert|delete|update|replace|alter|SET NAMES|FOUND_ROWS|RAND)\\b/si", $query ) ) {
 					$dbcr_cacheable = false;
-				}
-				elseif ( // For hard queries - skip them
-					!preg_match( "/\\s*(JOIN | \* |\*\,)/si", $query ) &&
+				} elseif ( // For hard queries - skip them
+					!preg_match( "/\\s*(JOIN | \* |\*\,)/si", $query ) ||
 					// User-defined cache filters
-					isset( $config['filter'] ) && ( $config['filter'] != '' ) &&
-					preg_match( "/\\s*(".$config['filter'].")/si", $query ) ) {
+					( isset( $config['filter'] ) && ( $config['filter'] != '' ) &&
+					preg_match( "/\\s*(".$config['filter'].")/si", $query ) ) ) {
 					$dbcr_cacheable = false;
 				}
 			}
@@ -176,17 +200,17 @@ class DBCR_WPDB_Wrapper {
 				$dbcr_queryid = md5( $query );
 				
 				if ( strpos( $query, '_options' ) ) {
-					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/options';
+					$this->dbcr_cache->set_storage( $dbcr_db, 'options' );
 				} elseif ( strpos( $query, '_links' ) ) {
-					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/links';
+					$this->dbcr_cache->set_storage( $dbcr_db, 'links' );
 				} elseif ( strpos( $query, '_terms' ) ) {
-					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/terms';
+					$this->dbcr_cache->set_storage( $dbcr_db, 'terms' );
 				} elseif ( strpos( $query, '_user' ) ) {
-					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/users';
+					$this->dbcr_cache->set_storage( $dbcr_db, 'users' );
 				} elseif ( strpos( $query, '_post' ) ) {
-					$this->dbcr_cache->storage = DBCR_CACHE_DIR.'/posts';
+					$this->dbcr_cache->set_storage( $dbcr_db, 'posts' );
 				} else {
-					$this->dbcr_cache->storage = DBCR_CACHE_DIR;
+					$this->dbcr_cache->set_storage( $dbcr_db, '' );
 				}
 			}
 			
@@ -202,33 +226,15 @@ class DBCR_WPDB_Wrapper {
 			$this->dbcr_show_error = false;
 			add_action( 'admin_notices', array( &$this, '_dbcr_admin_notice' ) );
 		}
-		// --- DB Cache End ---
-			
-		// --- DB Cache Start ---
-		if ( $dbcr_cacheable && !( $dbcr_cached = $this->dbcr_cache->load( $dbcr_queryid ) ) ) {
-			// --- DB Cache End ---
-			
-			$return_val = $this->dbcr_wpdb->query( $query );
-			if ( $return_val === false) { // error executing sql query
-				return false;
-			}
-			
-			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES ) {
-				$this->dbcr_wpdb->queries[count( $this->dbcr_wpdb->queries ) - 1][3] = false;
-			}
-			
-			// --- DB Cache Start ---
-			$dbcr_cached['last_query'] = $this->dbcr_wpdb->last_query;
-			$dbcr_cached['last_result'] = $this->dbcr_wpdb->last_result;
-			$dbcr_cached['col_info'] = $this->dbcr_wpdb->col_info;
-			$dbcr_cached['num_rows'] = $this->dbcr_wpdb->num_rows;
-			$dbcr_cached = serialize( $dbcr_cached );
-			
-			$this->dbcr_cache->save( $dbcr_cached, $dbcr_queryid);
-		} elseif ( $dbcr_cacheable ) {
-			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES )
-				$this->dbcr_wpdb->timer_start();
-			
+		
+		$dbcr_cached = false;
+		if ( $dbcr_cacheable ) {
+			// Try to load cached query
+			$dbcr_cached = $this->dbcr_cache->load( $dbcr_queryid );
+		}
+		
+		if ( $dbcr_cached !== false ) {
+			// Extract cached query
 			++$this->num_cachequeries;
 			
 			$dbcr_cached = unserialize( $dbcr_cached );
@@ -240,21 +246,39 @@ class DBCR_WPDB_Wrapper {
 			
 			$return_val = $this->dbcr_wpdb->num_rows;
 			
-			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES )
-				$this->dbcr_wpdb->queries[] = array( $query, $this->dbcr_wpdb->timer_stop(), 
-					$this->dbcr_wpdb->get_caller(), true );
-		} else { // if no cached
+			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES ) {
+				$this->dbcr_wpdb->queries[] = array( $query, $this->dbcr_wpdb->timer_stop(), $this->dbcr_wpdb->get_caller(), true );
+			}
+		} else {
+			// Cache not found or query not cacheable, perform query as usual
 			$return_val = $this->dbcr_wpdb->query( $query );
-			if ( $return_val === false) { // error executing sql query
+			if ( $return_val === false ) { // error executing sql query
 				return false;
 			}
 			
 			if ( defined('DBCR_SAVEQUERIES') && DBCR_SAVEQUERIES ) {
 				$this->dbcr_wpdb->queries[count( $this->dbcr_wpdb->queries ) - 1][3] = false;
 			}
-		} // if is no cached
-		// --- DB Cache End ---
-
+		}
+		
+		if ( preg_match( "/^\\s*(insert|delete|update|replace|alter) /i", $query ) ) {
+			// --- DB Cache Start ---
+			++$this->dbcr_num_dml_queries;
+			// --- DB Cache End ---
+		} else {
+			// --- DB Cache Start ---
+			if ( $dbcr_cacheable && ( $dbcr_cached === false ) ) {
+				$dbcr_cached = serialize( array(
+					'last_query' => $this->dbcr_wpdb->last_query,
+					'last_result' => $this->dbcr_wpdb->last_result,
+					'col_info' => $this->dbcr_wpdb->col_info,
+					'num_rows' => $this->dbcr_wpdb->num_rows,
+				) );
+				$this->dbcr_cache->save( $dbcr_cached, $dbcr_queryid );
+			}
+			// DB Cache End
+		}
+		
 		return $return_val;
 	}
 	
@@ -275,23 +299,23 @@ class DBCR_WPDB_Wrapper {
 	 *
 	 * @since 0.71
 	 *
-	 * @param string|null $query SQL query.  If null, use the result from the previous query.
-	 * @param int $x (optional) Column of value to return.  Indexed from 0.
-	 * @param int $y (optional) Row of value to return.  Indexed from 0.
-	 * @return string Database query result
+	 * @param string|null $query Optional. SQL query. Defaults to null, use the result from the previous query.
+	 * @param int $x Optional. Column of value to return.  Indexed from 0.
+	 * @param int $y Optional. Row of value to return.  Indexed from 0.
+	 * @return string|null Database query result (as string), or null on failure
 	 */
-	function get_var($query=null, $x = 0, $y = 0) {
-		$this->func_call = "\$db->get_var(\"$query\",$x,$y)";
+	function get_var( $query = null, $x = 0, $y = 0 ) {
+		$this->dbcr_wpdb->func_call = "\$db->get_var(\"$query\", $x, $y)";
 		if ( $query )
-			$this->dbcr_query($query);
+			$this->dbcr_query( $query );
 
 		// Extract var out of cached results based x,y vals
-		if ( !empty( $this->last_result[$y] ) ) {
-			$values = array_values(get_object_vars($this->last_result[$y]));
+		if ( !empty( $this->dbcr_wpdb->last_result[$y] ) ) {
+			$values = array_values( get_object_vars( $this->dbcr_wpdb->last_result[$y] ) );
 		}
 
 		// If there is a value return it else return null
-		return (isset($values[$x]) && $values[$x]!=='') ? $values[$x] : null;
+		return ( isset( $values[$x] ) && $values[$x] !== '' ) ? $values[$x] : null;
 	}
 
 	/**
@@ -302,28 +326,29 @@ class DBCR_WPDB_Wrapper {
 	 * @since 0.71
 	 *
 	 * @param string|null $query SQL query.
-	 * @param string $output (optional) one of ARRAY_A | ARRAY_N | OBJECT constants.  Return an associative array (column => value, ...), a numerically indexed array (0 => value, ...) or an object ( ->column = value ), respectively.
-	 * @param int $y (optional) Row to return.  Indexed from 0.
-	 * @return mixed Database query result in format specifed by $output
+	 * @param string $output Optional. one of ARRAY_A | ARRAY_N | OBJECT constants. Return an associative array (column => value, ...),
+	 * 	a numerically indexed array (0 => value, ...) or an object ( ->column = value ), respectively.
+	 * @param int $y Optional. Row to return. Indexed from 0.
+	 * @return mixed Database query result in format specifed by $output or null on failure
 	 */
-	function get_row($query = null, $output = OBJECT, $y = 0) {
-		$this->func_call = "\$db->get_row(\"$query\",$output,$y)";
+	function get_row( $query = null, $output = OBJECT, $y = 0 ) {
+		$this->dbcr_wpdb->func_call = "\$db->get_row(\"$query\",$output,$y)";
 		if ( $query )
-			$this->dbcr_query($query);
+			$this->dbcr_query( $query );
 		else
 			return null;
 
-		if ( !isset($this->last_result[$y]) )
+		if ( !isset( $this->dbcr_wpdb->last_result[$y] ) )
 			return null;
 
 		if ( $output == OBJECT ) {
-			return $this->last_result[$y] ? $this->last_result[$y] : null;
+			return $this->dbcr_wpdb->last_result[$y] ? $this->dbcr_wpdb->last_result[$y] : null;
 		} elseif ( $output == ARRAY_A ) {
-			return $this->last_result[$y] ? get_object_vars($this->last_result[$y]) : null;
+			return $this->dbcr_wpdb->last_result[$y] ? get_object_vars( $this->dbcr_wpdb->last_result[$y] ) : null;
 		} elseif ( $output == ARRAY_N ) {
-			return $this->last_result[$y] ? array_values(get_object_vars($this->last_result[$y])) : null;
+			return $this->dbcr_wpdb->last_result[$y] ? array_values( get_object_vars( $this->dbcr_wpdb->last_result[$y] ) ) : null;
 		} else {
-			$this->print_error(/*WP_I18N_DB_GETROW_ERROR*/" \$db->get_row(string query, output type, int offset) -- Output type must be one of: OBJECT, ARRAY_A, ARRAY_N"/*/WP_I18N_DB_GETROW_ERROR*/);
+			$this->dbcr_wpdb->print_error(/*WP_I18N_DB_GETROW_ERROR*/" \$db->get_row(string query, output type, int offset) -- Output type must be one of: OBJECT, ARRAY_A, ARRAY_N"/*/WP_I18N_DB_GETROW_ERROR*/);
 		}
 	}
 
@@ -336,18 +361,18 @@ class DBCR_WPDB_Wrapper {
 	 *
 	 * @since 0.71
 	 *
-	 * @param string|null $query SQL query.  If null, use the result from the previous query.
-	 * @param int $x Column to return.  Indexed from 0.
+	 * @param string|null $query Optional. SQL query. Defaults to previous query.
+	 * @param int $x Optional. Column to return. Indexed from 0.
 	 * @return array Database query result.  Array indexed from 0 by SQL result row number.
 	 */
-	function get_col($query = null , $x = 0) {
+	function get_col( $query = null , $x = 0 ) {
 		if ( $query )
-			$this->dbcr_query($query);
+			$this->dbcr_query( $query );
 
 		$new_array = array();
 		// Extract the column values
-		for ( $i=0; $i < count($this->last_result); $i++ ) {
-			$new_array[$i] = $this->get_var(null, $x, $i);
+		for ( $i = 0, $j = count( $this->dbcr_wpdb->last_result ); $i < $j; $i++ ) {
+			$new_array[$i] = $this->get_var( null, $x, $i );
 		}
 		return $new_array;
 	}
@@ -360,46 +385,48 @@ class DBCR_WPDB_Wrapper {
 	 * @since 0.71
 	 *
 	 * @param string $query SQL query.
-	 * @param string $output (optional) ane of ARRAY_A | ARRAY_N | OBJECT | OBJECT_K constants.  With one of the first three, return an array of rows indexed from 0 by SQL result row number.  Each row is an associative array (column => value, ...), a numerically indexed array (0 => value, ...), or an object. ( ->column = value ), respectively.  With OBJECT_K, return an associative array of row objects keyed by the value of each row's first column's value.  Duplicate keys are discarded.
+	 * @param string $output Optional. Any of ARRAY_A | ARRAY_N | OBJECT | OBJECT_K constants. With one of the first three, return an array of rows indexed from 0 by SQL result row number.
+	 * 	Each row is an associative array (column => value, ...), a numerically indexed array (0 => value, ...), or an object. ( ->column = value ), respectively.
+	 * 	With OBJECT_K, return an associative array of row objects keyed by the value of each row's first column's value.  Duplicate keys are discarded.
 	 * @return mixed Database query results
 	 */
-	function get_results($query = null, $output = OBJECT) {
-		$this->func_call = "\$db->get_results(\"$query\", $output)";
+	function get_results( $query = null, $output = OBJECT ) {
+		$this->dbcr_wpdb->func_call = "\$db->get_results(\"$query\", $output)";
 
 		if ( $query )
-			$this->dbcr_query($query);
+			$this->dbcr_query( $query );
 		else
 			return null;
 
+		$new_array = array();
 		if ( $output == OBJECT ) {
 			// Return an integer-keyed array of row objects
-			return $this->last_result;
+			return $this->dbcr_wpdb->last_result;
 		} elseif ( $output == OBJECT_K ) {
 			// Return an array of row objects with keys from column 1
 			// (Duplicates are discarded)
-			foreach ( $this->last_result as $row ) {
+			foreach ( $this->dbcr_wpdb->last_result as $row ) {
 				$key = array_shift( get_object_vars( $row ) );
-				if ( !isset( $new_array[ $key ] ) )
+				if ( ! isset( $new_array[ $key ] ) )
 					$new_array[ $key ] = $row;
 			}
 			return $new_array;
 		} elseif ( $output == ARRAY_A || $output == ARRAY_N ) {
 			// Return an integer-keyed array of...
-			if ( $this->last_result ) {
-				$i = 0;
-				foreach( (array) $this->last_result as $row ) {
+			if ( $this->dbcr_wpdb->last_result ) {
+				foreach( (array) $this->dbcr_wpdb->last_result as $row ) {
 					if ( $output == ARRAY_N ) {
 						// ...integer-keyed row arrays
-						$new_array[$i] = array_values( get_object_vars( $row ) );
+						$new_array[] = array_values( get_object_vars( $row ) );
 					} else {
 						// ...column name-keyed row arrays
-						$new_array[$i] = get_object_vars( $row );
+						$new_array[] = get_object_vars( $row );
 					}
-					++$i;
 				}
-				return $new_array;
 			}
+			return $new_array;
 		}
+		return null;
 	}
 	
 	// Wrappers for members of aggregated class
