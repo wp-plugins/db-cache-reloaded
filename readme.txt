@@ -27,7 +27,7 @@ Available translations:
 * Polish (pl_PL) - done by me
 * Italian (it_IT) - thanks [Iacopo](http://www.iacchi.org/)
 * Portuguese Brazilian (pt_BR) - thanks [Calebe Aires](http://gattune.blog.br/)
-* Belorussian (be_BY) - thanks [FatCow](http://www.fatcow.com/)
+* Belorussian (be_BY) - thanks FatCow
 * Spanish (es_ES) - thanks [Dasumo](http://www.dasumo.com/)
 * Dutch (nl_NL) - thanks [Rene](http://wordpresspluginguide.com/)
 * Turkish (tr_TR) - thanks [wolkanca](http://wolkanca.com/)
